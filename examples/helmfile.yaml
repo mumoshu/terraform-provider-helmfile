@@ -1,0 +1,5 @@
+releases:
+- name: {{ .Values.name }}-{{ requiredEnv "FOO" }}
+  chart: sp/podinfo
+  labels:
+    labelkey1: value1
