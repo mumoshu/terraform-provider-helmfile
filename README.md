@@ -170,3 +170,7 @@ If you wish to build this yourself, follow the instructions:
 
 	cd terraform-provider-helmfile
 	go build
+
+## Acknowledgement
+
+The implementation of this product is highly inspired from [terraform-provider-shell](https://github.com/scottwinkler/terraform-provider-shell). A lot of thanks to the author!

@@ -1,5 +1,8 @@
 releases:
 - name: {{ .Values.name }}-{{ requiredEnv "FOO" }}
   chart: sp/podinfo
+  values:
+  - image:
+      tag: foobar2aa
   labels:
     labelkey1: value1

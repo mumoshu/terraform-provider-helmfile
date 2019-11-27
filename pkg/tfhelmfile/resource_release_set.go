@@ -1,7 +1,7 @@
 package tfhelmfile
 
 import (
-	"encoding/json"
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -19,12 +19,15 @@ const KeySelector = "selector"
 const KeyEnvironmentVariables = "environment_variables"
 const KeyWorkingDirectory = "working_directory"
 const KeyPath = "path"
+const KeyContent = "content"
 const KeyEnvironment = "environment"
 const KeyBin = "binary"
 const KeyHelmBin = "helm_binary"
 const KeyDiffOutput = "diff_output"
 const KeyApplyOutput = "apply_output"
 const KeyDirty = "dirty"
+
+const HelmfileDefaultPath = "helmfile.yaml"
 
 func resourceShellHelmfileReleaseSet() *schema.Resource {
 	return &schema.Resource{
@@ -42,9 +45,12 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 				},
 			},
 			KeyValues: {
-				Type:     schema.TypeMap,
+				Type:     schema.TypeList,
 				Optional: true,
 				ForceNew: false,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
 			},
 			KeySelector: {
 				Type:     schema.TypeMap,
@@ -66,7 +72,12 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: false,
-				Default:  "helmfile.yaml",
+				Default:  HelmfileDefaultPath,
+			},
+			KeyContent: {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: false,
 			},
 			KeyBin: {
 				Type:     schema.TypeString,
@@ -121,30 +132,34 @@ func resourceReleaseSetUpdate(d *schema.ResourceData, meta interface{}) error {
 func resourceReleaseSetDelete(d *schema.ResourceData, meta interface{}) error {
 	return delete(d, meta, []string{"delete"})
 }
-type Fields struct {
+
+type ReleaseSet struct {
 	Bin                  string
-	Values               map[string]interface{}
+	Values               []interface{}
 	ValuesFiles          []interface{}
 	HelmBin              string
 	Path                 string
+	Content              string
 	DiffOutput           string
 	ApplyOutput          string
 	Environment          string
 	Selector             map[string]interface{}
 	EnvironmentVariables map[string]interface{}
 	WorkingDirectory     string
+	Kubeconfig           string
 }
 
-func MustRead(d *schema.ResourceData) *Fields {
-	f := Fields{}
+func MustRead(d *schema.ResourceData) *ReleaseSet {
+	f := ReleaseSet{}
 	f.Environment = d.Get(KeyEnvironment).(string)
 	f.Path = d.Get(KeyPath).(string)
+	f.Content = d.Get(KeyContent).(string)
 	f.DiffOutput = d.Get(KeyDiffOutput).(string)
 	f.ApplyOutput = d.Get(KeyApplyOutput).(string)
 	f.HelmBin = d.Get(KeyHelmBin).(string)
 	f.Selector = d.Get(KeySelector).(map[string]interface{})
 	f.ValuesFiles = d.Get(KeyValuesFiles).([]interface{})
-	f.Values = d.Get(KeyValues).(map[string]interface{})
+	f.Values = d.Get(KeyValues).([]interface{})
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 	f.EnvironmentVariables = d.Get(KeyEnvironmentVariables).(map[string]interface{})
@@ -159,10 +174,25 @@ func SetApplyOutput(d *schema.ResourceData, v string) {
 	d.Set(KeyApplyOutput, v)
 }
 
-func GenerateCommand(fs *Fields, additionals ...string) (*exec.Cmd, error) {
+func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
+	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
+		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
+	}
+	var path string
+	if fs.Content != "" {
+		bs := []byte(fs.Content)
+		first := sha256.New()
+		first.Write(bs)
+		path := fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
+		if err := ioutil.WriteFile(path, bs, 0700); err != nil {
+			return nil, err
+		}
+	} else {
+		path = fs.Path
+	}
 	args := []string{
 		"--environment", fs.Environment,
-		"--file", fs.Path,
+		"--file", path,
 		"--helm-binary", fs.HelmBin,
 	}
 	for k, v := range fs.Selector {
@@ -171,12 +201,11 @@ func GenerateCommand(fs *Fields, additionals ...string) (*exec.Cmd, error) {
 	for _, f := range fs.ValuesFiles {
 		args = append(args, "--state-values-file", fmt.Sprintf("%v", f))
 	}
-	if len(fs.Values) > 0 {
-		js, err := json.Marshal(fs.Values)
-		if err != nil {
-			return nil, err
-		}
-		tmpf := "temp.values.yaml"
+	for _, vs := range fs.Values {
+		js := []byte(fmt.Sprintf("%s", vs))
+		first := sha256.New()
+		first.Write(js)
+		tmpf := fmt.Sprintf("temp.values-%x.yaml", first.Sum(nil))
 		if err := ioutil.WriteFile(tmpf, js, 0700); err != nil {
 			return nil, err
 		}
@@ -189,9 +218,13 @@ func GenerateCommand(fs *Fields, additionals ...string) (*exec.Cmd, error) {
 }
 
 func create(d *schema.ResourceData, meta interface{}, stack []string) error {
+	fs := MustRead(d)
+	return createRs(fs, d, meta, stack)
+}
+
+func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Creating release set resource...")
 	printStackTrace(stack)
-	fs := MustRead(d)
 	cmd, err := GenerateCommand(fs, "apply")
 	if err != nil {
 		return err
@@ -221,10 +254,13 @@ func create(d *schema.ResourceData, meta interface{}, stack []string) error {
 }
 
 func read(d *schema.ResourceData, meta interface{}, stack []string) error {
+	fs := MustRead(d)
+	return readRs(fs, d, meta, stack)
+}
+
+func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Reading release set resource...")
 	printStackTrace(stack)
-
-	fs := MustRead(d)
 
 	cmd, err := GenerateCommand(fs, "diff", "--detailed-exitcode")
 	if err != nil {
@@ -266,10 +302,14 @@ func read(d *schema.ResourceData, meta interface{}, stack []string) error {
 }
 
 func update(d *schema.ResourceData, meta interface{}, stack []string) error {
+	fs := MustRead(d)
+	return updateRs(fs, d, meta, stack)
+}
+
+func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Updating release set resource...")
 	d.Set(KeyDirty, false)
 	printStackTrace(stack)
-	fs := MustRead(d)
 	cmd, err := GenerateCommand(fs, "apply")
 	if err != nil {
 		return err
@@ -288,10 +328,10 @@ func update(d *schema.ResourceData, meta interface{}, stack []string) error {
 
 	helmfileMutexKV.Unlock(releaseSetMutexKey)
 
-	if err := read(d, meta, stack); err != nil {
-		return err
-	}
-
+	//if err := read(d, meta, stack); err != nil {
+	//	return err
+	//}
+	//
 	SetDiffOutput(d, "")
 	SetApplyOutput(d, st.Output)
 
@@ -299,9 +339,13 @@ func update(d *schema.ResourceData, meta interface{}, stack []string) error {
 }
 
 func delete(d *schema.ResourceData, meta interface{}, stack []string) error {
+	fs := MustRead(d)
+	return deleteRs(fs, d, meta, stack)
+}
+
+func deleteRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Deleting release set resource...")
 	printStackTrace(stack)
-	fs := MustRead(d)
 	cmd, err := GenerateCommand(fs, "destroy")
 	if err != nil {
 		return err

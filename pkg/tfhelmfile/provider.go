@@ -14,6 +14,7 @@ func Provider() terraform.ResourceProvider {
 		Schema: map[string]*schema.Schema{},
 		ResourcesMap: map[string]*schema.Resource{
 			"helmfile_release_set": resourceShellHelmfileReleaseSet(),
+			"helmfile_release": resourceShellHelmfileRelease(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
