@@ -17,6 +17,7 @@ const KeyVerify = "verify"
 const KeyWait = "wait"
 const KeyForce = "force"
 const KeyAtomic = "atomic"
+const KeyCleanupOnFail = "cleanup_on_fail"
 const KeyTimeout = "timeout"
 const KeyKubecontext = "kubecontext"
 const KeyKubeconfig = "kubeconfig"
@@ -80,6 +81,11 @@ func resourceShellHelmfileRelease() *schema.Resource {
 				Default:  false,
 			},
 			KeyAtomic: {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  true,
+			},
+			KeyCleanupOnFail: {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  true,
@@ -176,6 +182,7 @@ type Release struct {
 	Wait             bool
 	Force            bool
 	Atomic           bool
+	CleanupOnFail    bool
 	Timeout          int
 	Kubeconfig       string
 	Kubecontext      string
@@ -201,6 +208,7 @@ func mustReadRelease(d *schema.ResourceData) *Release {
 	f.Wait = d.Get(KeyWait).(bool)
 	f.Force = d.Get(KeyForce).(bool)
 	f.Atomic = d.Get(KeyAtomic).(bool)
+	f.CleanupOnFail = d.Get(KeyCleanupOnFail).(bool)
 	f.Timeout = d.Get(KeyTimeout).(int)
 	f.Kubeconfig = d.Get(KeyKubeconfig).(string)
 	f.Kubecontext = d.Get(KeyKubecontext).(string)
@@ -223,17 +231,18 @@ func generateHelmfileYaml(r *Release) (*ReleaseSet, error) {
 	content := map[string]interface{}{
 		"releases": []interface{}{
 			map[string]interface{}{
-				"namespace":   r.Namespace,
-				"name":        r.Name,
-				"chart":       r.Chart,
-				"version":     r.Version,
-				"values":      values,
-				"verify":      r.Verify,
-				"wait":        r.Wait,
-				"force":       r.Force,
-				"atomic":      r.Atomic,
-				"timeout":     r.Timeout,
-				"kubeContext": r.Kubecontext,
+				"namespace":     r.Namespace,
+				"name":          r.Name,
+				"chart":         r.Chart,
+				"version":       r.Version,
+				"values":        values,
+				"verify":        r.Verify,
+				"wait":          r.Wait,
+				"force":         r.Force,
+				"atomic":        r.Atomic,
+				"cleanupOnFail": r.CleanupOnFail,
+				"timeout":       r.Timeout,
+				"kubeContext":   r.Kubecontext,
 			},
 		},
 	}
@@ -248,12 +257,12 @@ func generateHelmfileYaml(r *Release) (*ReleaseSet, error) {
 		return nil, err
 	}
 	rs := &ReleaseSet{
-		Bin: r.Bin,
-		HelmBin: r.HelmBin,
-		Path: path,
-		Environment: "default",
+		Bin:              r.Bin,
+		HelmBin:          r.HelmBin,
+		Path:             path,
+		Environment:      "default",
 		WorkingDirectory: r.WorkingDirectory,
-		Kubeconfig: r.Kubeconfig,
+		Kubeconfig:       r.Kubeconfig,
 	}
 	return rs, nil
 }
