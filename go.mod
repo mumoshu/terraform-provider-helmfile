@@ -1,6 +1,6 @@
 module github.com/mumoshu/terraform-provider-helmfile
 
-go 1.12
+go 1.13
 
 require (
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2

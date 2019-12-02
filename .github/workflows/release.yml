@@ -1,0 +1,48 @@
+name: 'Build Go binaries and attach to GitHub Release'
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: 'Build Go binaries and attach to GitHub Release'
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repo
+      - name: 'Checkout'
+        uses: actions/checkout@v1
+
+      # Build Go binaries
+      - name: 'Build Go binaries'
+        uses: cloudposse/actions/go/build@0.2.0
+        env:
+          # OSes and architectures for `gox` to build for
+          GOX_OSARCH: >-
+            windows/386
+            windows/amd64
+            freebsd/arm
+            netbsd/386
+            netbsd/amd64
+            netbsd/arm
+            linux/s390x
+            linux/arm
+            darwin/386
+            darwin/amd64
+            linux/386
+            linux/amd64
+            freebsd/amd64
+            freebsd/386
+            openbsd/386
+            openbsd/amd64
+          # The action runs in a Docker container
+          # Inside the Docker container, the current repo will be available at `github.workspace` path
+          OUTPUT_PATH: ${{ github.workspace }}/release/terraform_provider_helmfile_
+
+      # Attach Go binaries to GitHub Release
+      - name: 'Attach Go binaries to GitHub Release'
+        uses: cloudposse/actions/github/release-assets@0.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_PATH: ${{ github.workspace }}/release/terraform_provider_helmfile_*
