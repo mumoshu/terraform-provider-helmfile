@@ -16,7 +16,7 @@ jobs:
 
       # Build Go binaries
       - name: 'Build Go binaries'
-        uses: cloudposse/actions/go/build@update-go-build
+        uses: cloudposse/actions/go/build@0.7.0
         env:
           # Architectures to build for
           GOX_OSARCH: >-
@@ -40,7 +40,7 @@ jobs:
 
       # Attach Go binaries to GitHub Release
       - name: 'Attach Go binaries to GitHub Release'
-        uses: cloudposse/actions/github/release-assets@0.2.0
+        uses: cloudposse/actions/github/release-assets@0.7.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_PATH: ${{ github.workspace }}/release/terraform-provider-helmfile_*
