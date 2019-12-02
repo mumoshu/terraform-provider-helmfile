@@ -18,7 +18,7 @@ jobs:
       - name: 'Build Go binaries'
         uses: cloudposse/actions/go/build@update-go-build
         env:
-          # Architectures for `gox` to build for
+          # Architectures to build for
           GOX_OSARCH: >-
             windows/386
             windows/amd64
@@ -36,11 +36,11 @@ jobs:
             freebsd/386
             openbsd/386
             openbsd/amd64
-          OUTPUT_PATH: ${{ github.workspace }}/release/terraform_provider_helmfile_
+          OUTPUT_PATH: ${{ github.workspace }}/release/terraform-provider-helmfile_
 
       # Attach Go binaries to GitHub Release
       - name: 'Attach Go binaries to GitHub Release'
         uses: cloudposse/actions/github/release-assets@0.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INPUT_PATH: ${{ github.workspace }}/release/terraform_provider_helmfile_*
+          INPUT_PATH: ${{ github.workspace }}/release/terraform-provider-helmfile_*
