@@ -16,7 +16,7 @@ jobs:
 
       # Build Go binaries
       - name: 'Build Go binaries'
-        uses: cloudposse/actions/go/build@0.2.0
+        uses: cloudposse/actions/go/build@update-go-build
         env:
           # OSes and architectures for `gox` to build for
           GOX_OSARCH: >-
@@ -42,7 +42,7 @@ jobs:
           # Since this fork uses `mumoshu/terraform-provider-helmfile` Go imports, we provide WORKING_DIR to the action.
           # The action will copy the current repo into WORKING_DIR, which has GOPATH structure.
           WORKING_DIR: ${{ github.workspace }}/../src/github.com/mumoshu/terraform-provider-helmfile
-          GOPATH: ${{ github.workspace }}/../
+          GOPATH: ${{ github.workspace }}/..
 
       # Attach Go binaries to GitHub Release
       - name: 'Attach Go binaries to GitHub Release'
