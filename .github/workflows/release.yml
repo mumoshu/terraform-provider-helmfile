@@ -39,6 +39,10 @@ jobs:
           # The action runs in a Docker container
           # Inside the Docker container, the current repo will be available at `github.workspace` path
           OUTPUT_PATH: ${{ github.workspace }}/release/terraform_provider_helmfile_
+          # Since this fork uses `mumoshu/terraform-provider-helmfile` Go imports, we provide WORKING_DIR to the action.
+          # The action will copy the current repo into WORKING_DIR, which has GOPATH structure.
+          WORKING_DIR: ${{ github.workspace }}/../src/github.com/mumoshu/terraform-provider-helmfile
+          GOPATH: ${{ github.workspace }}/../
 
       # Attach Go binaries to GitHub Release
       - name: 'Attach Go binaries to GitHub Release'
