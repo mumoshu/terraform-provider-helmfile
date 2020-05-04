@@ -282,7 +282,7 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
          args := []string{
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
-                  "--detailed-exitcode",
+		"--detailed-exitcode",
 	}
 
 	cmd, err := GenerateCommand(fs, args...)
