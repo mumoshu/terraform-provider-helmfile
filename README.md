@@ -34,6 +34,9 @@ resource "helmfile_release_set" "mystack" {
 
     working_directory = path.module
 
+    # Maximum number of concurrent helm processes to run, 0 is unlimited (0 is a default value)
+    concurrency = 0
+
     # Helmfile environment name to deploy
     # Default: default
     environment = "prod"
