@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/rs/xid"
@@ -223,6 +224,7 @@ func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(fs.Bin, append(args, additionals...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
+	log.Printf("[DEBUG] Cmd: %s", strings.Join(cmd.Args," "))
 	return cmd, nil
 }
 
