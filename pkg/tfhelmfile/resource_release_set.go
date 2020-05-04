@@ -26,6 +26,7 @@ const KeyHelmBin = "helm_binary"
 const KeyDiffOutput = "diff_output"
 const KeyApplyOutput = "apply_output"
 const KeyDirty = "dirty"
+const KeyConcurrency = "concurrency"
 
 const HelmfileDefaultPath = "helmfile.yaml"
 
@@ -112,6 +113,11 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 				Optional: true,
 				Default:  false,
 			},
+			KeyConcurrency: {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Default:  false,
+			},
 		},
 	}
 }
@@ -147,6 +153,7 @@ type ReleaseSet struct {
 	EnvironmentVariables map[string]interface{}
 	WorkingDirectory     string
 	Kubeconfig           string
+	Concurrency          int
 }
 
 func MustRead(d *schema.ResourceData) *ReleaseSet {
@@ -163,6 +170,7 @@ func MustRead(d *schema.ResourceData) *ReleaseSet {
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 	f.EnvironmentVariables = d.Get(KeyEnvironmentVariables).(map[string]interface{})
+	f.Concurrency = d.Get(KeyConcurrency).(int)
 	return &f
 }
 
@@ -225,7 +233,14 @@ func create(d *schema.ResourceData, meta interface{}, stack []string) error {
 func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Creating release set resource...")
 	printStackTrace(stack)
-	cmd, err := GenerateCommand(fs, "apply")
+
+         args := []string{
+		"--concurrency", fs.Concurrency,
+	}
+
+	args = append("apply", args)
+
+	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return err
 	}
@@ -262,7 +277,14 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 	log.Printf("[DEBUG] Reading release set resource...")
 	printStackTrace(stack)
 
-	cmd, err := GenerateCommand(fs, "diff", "--detailed-exitcode")
+         args := []string{
+		"--concurrency", fs.Concurrency,
+                  "--detailed-exitcode",
+	}
+
+	args = append("diff", args)
+
+	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return err
 	}
@@ -310,7 +332,14 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	log.Printf("[DEBUG] Updating release set resource...")
 	d.Set(KeyDirty, false)
 	printStackTrace(stack)
-	cmd, err := GenerateCommand(fs, "apply")
+
+	args := []string{
+		"--concurrency", fs.Concurrency,
+	}
+
+	args = append("apply", args)
+
+	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return err
 	}
