@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/rs/xid"
@@ -116,7 +117,7 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 			KeyConcurrency: {
 				Type:     schema.TypeInt,
 				Optional: true,
-				Default:  false,
+				Default:  0,
 			},
 		},
 	}
@@ -235,10 +236,9 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	printStackTrace(stack)
 
          args := []string{
-		"--concurrency", fs.Concurrency,
+		"apply",
+		"--concurrency", strconv.Itoa(fs.Concurrency),
 	}
-
-	args = append("apply", args)
 
 	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
@@ -278,11 +278,10 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 	printStackTrace(stack)
 
          args := []string{
-		"--concurrency", fs.Concurrency,
+		"diff",
+		"--concurrency", strconv.Itoa(fs.Concurrency),
                   "--detailed-exitcode",
 	}
-
-	args = append("diff", args)
 
 	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
@@ -334,10 +333,9 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	printStackTrace(stack)
 
 	args := []string{
-		"--concurrency", fs.Concurrency,
+		"apply",
+		"--concurrency", strconv.Itoa(fs.Concurrency),
 	}
-
-	args = append("apply", args)
 
 	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
