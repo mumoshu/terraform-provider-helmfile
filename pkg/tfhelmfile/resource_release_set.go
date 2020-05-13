@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/rs/xid"
@@ -26,6 +28,7 @@ const KeyHelmBin = "helm_binary"
 const KeyDiffOutput = "diff_output"
 const KeyApplyOutput = "apply_output"
 const KeyDirty = "dirty"
+const KeyConcurrency = "concurrency"
 
 const HelmfileDefaultPath = "helmfile.yaml"
 
@@ -112,6 +115,11 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 				Optional: true,
 				Default:  false,
 			},
+			KeyConcurrency: {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Default:  0,
+			},
 		},
 	}
 }
@@ -147,6 +155,7 @@ type ReleaseSet struct {
 	EnvironmentVariables map[string]interface{}
 	WorkingDirectory     string
 	Kubeconfig           string
+	Concurrency          int
 }
 
 func MustRead(d *schema.ResourceData) *ReleaseSet {
@@ -163,6 +172,7 @@ func MustRead(d *schema.ResourceData) *ReleaseSet {
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 	f.EnvironmentVariables = d.Get(KeyEnvironmentVariables).(map[string]interface{})
+	f.Concurrency = d.Get(KeyConcurrency).(int)
 	return &f
 }
 
@@ -214,6 +224,7 @@ func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(fs.Bin, append(args, additionals...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
+	log.Printf("[DEBUG] Cmd: %s", strings.Join(cmd.Args," "))
 	return cmd, nil
 }
 
@@ -225,7 +236,13 @@ func create(d *schema.ResourceData, meta interface{}, stack []string) error {
 func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Creating release set resource...")
 	printStackTrace(stack)
-	cmd, err := GenerateCommand(fs, "apply")
+
+         args := []string{
+		"apply",
+		"--concurrency", strconv.Itoa(fs.Concurrency),
+	}
+
+	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return err
 	}
@@ -262,7 +279,13 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 	log.Printf("[DEBUG] Reading release set resource...")
 	printStackTrace(stack)
 
-	cmd, err := GenerateCommand(fs, "diff", "--detailed-exitcode")
+         args := []string{
+		"diff",
+		"--concurrency", strconv.Itoa(fs.Concurrency),
+		"--detailed-exitcode",
+	}
+
+	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return err
 	}
@@ -310,7 +333,13 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	log.Printf("[DEBUG] Updating release set resource...")
 	d.Set(KeyDirty, false)
 	printStackTrace(stack)
-	cmd, err := GenerateCommand(fs, "apply")
+
+	args := []string{
+		"apply",
+		"--concurrency", strconv.Itoa(fs.Concurrency),
+	}
+
+	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return err
 	}
