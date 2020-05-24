@@ -37,7 +37,7 @@ func resourceShellHelmfileRelease() *schema.Resource {
 			},
 			KeyName: {
 				Type:     schema.TypeString,
-				Required: false,
+				Optional: true,
 				ForceNew: true,
 			},
 			KeyChart: {
