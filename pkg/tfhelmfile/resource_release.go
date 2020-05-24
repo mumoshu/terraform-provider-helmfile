@@ -37,7 +37,7 @@ func resourceShellHelmfileRelease() *schema.Resource {
 			},
 			KeyName: {
 				Type:     schema.TypeString,
-				Required: true,
+				Required: false,
 				ForceNew: true,
 			},
 			KeyChart: {
@@ -200,6 +200,9 @@ func mustReadRelease(d *schema.ResourceData) *Release {
 	f := Release{}
 	f.Namespace = d.Get(KeyNamespace).(string)
 	f.Name = d.Get(KeyName).(string)
+	if f.Name == "" {
+		f.Name = d.Id()
+	}
 	f.Chart = d.Get(KeyChart).(string)
 	f.Version = d.Get(KeyVersion).(string)
 	f.Values = d.Get(KeyValues).([]interface{})

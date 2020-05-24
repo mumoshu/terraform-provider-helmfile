@@ -30,7 +30,8 @@ You can define a release in one of the three ways:
 
 ```hcl
 resource "helmfile_release" "myapp" {
-	name = "myapp"
+	# `name` is the optional release name. When omitted, it's set to the ID of the resource, "myapp".
+	# name = "myapp-${var.somevar}"
 	namespace = "default"
 	chart = "sp/podinfo"
 	helm_binary = "helm3"
