@@ -14,14 +14,48 @@ Install the `terraform-provider-helmfile` binary under `terraform.d/plugins/${OS
 
 ## Examples
 
-There is nothing to configure for the provider, declare it like so
+There is nothing to configure for the provider, so you firstly declare the provider like:
 
 ```
 provider "helmfile" {}
+```
 
+You can define a release in one of the three ways:
+
+- Inline `helmfile_release`
+- External `helmfile_release_set`
+- Inline `helmfile_release_set`
+
+`helmfile_release` would be a natural choice for users who are familiar with Terraform. It just map each Terraform `helmfile_release` resource to a Helm release 1-by-1:
+
+```hcl
+resource "helmfile_release" "myapp" {
+	name = "myapp"
+	namespace = "default"
+	chart = "sp/podinfo"
+	helm_binary = "helm3"
+
+	working_directory = path.module
+	values = [
+		<<EOF
+{ "image": {"tag": "3.14" } }
+EOF
+	]
+}
+```
+
+External `helmfile_release_set` is the easiest way for existing Helmfile users, as the tf resource maps to the exsiting helmfile.yaml 1:1.
+
+```
 resource "helmfile_release_set" "mystack" {
-    path = "./helmfile.yaml"
-    
+    content = file("./helmfile.yaml")
+}
+```
+
+The inline variant of the release set allows you to render helmfile.yaml without Go template but with the Terraform syntax:
+
+```
+resource "helmfile_release_set" "mystack" {
     # Install and choose from one of installed versions of helm
     # By changing this, you can upgrade helm per release_set
     # Default: helm
@@ -63,7 +97,6 @@ resource "helmfile_release_set" "mystack" {
       labelkey1 = "value1"
     }
 }
-
 
 output "mystack_diff" {
   value = helmfile_release_set.mystack.diff_output

@@ -224,7 +224,7 @@ func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(fs.Bin, append(args, additionals...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
-	log.Printf("[DEBUG] Cmd: %s", strings.Join(cmd.Args," "))
+	log.Printf("[DEBUG] Cmd: %s", strings.Join(cmd.Args, " "))
 	return cmd, nil
 }
 
@@ -237,7 +237,7 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	log.Printf("[DEBUG] Creating release set resource...")
 	printStackTrace(stack)
 
-         args := []string{
+	args := []string{
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 	}
@@ -279,7 +279,7 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 	log.Printf("[DEBUG] Reading release set resource...")
 	printStackTrace(stack)
 
-         args := []string{
+	args := []string{
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--detailed-exitcode",

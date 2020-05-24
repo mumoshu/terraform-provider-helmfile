@@ -31,6 +31,8 @@ install: build
 	rm -rf $(PLUGIN_PATH)/${PLUGIN_NAME}; \
 	install -m 0755 $(DIST_PATH)/${PLUGIN_NAME} $(PLUGIN_PATH)/${PLUGIN_NAME}
 
+# Set TF_LOG=DEBUG to enable debug logs from the provider
+# Setting TF_LOG_PATH would also help
 .PHONY: example/plan
 example/plan:
 	mkdir -p examples/terraform.d/plugins
