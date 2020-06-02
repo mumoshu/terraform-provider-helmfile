@@ -88,8 +88,9 @@ resource "helmfile_release_set" "mystack" {
     }
     
     # State values files to be passed to Helmfile
-    values_files = [
-      "overrides.yaml",
+    values = [
+      file("overrides.yaml"),
+      file("another.yaml"),
     ]
     
     # Label key-value pairs to filter releases 
