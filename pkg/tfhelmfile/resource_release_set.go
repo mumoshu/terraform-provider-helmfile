@@ -240,6 +240,7 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	args := []string{
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
+		"--suppress-secrets",
 	}
 
 	cmd, err := GenerateCommand(fs, args...)
@@ -283,6 +284,7 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--detailed-exitcode",
+		"--suppress-secrets",
 	}
 
 	cmd, err := GenerateCommand(fs, args...)
@@ -337,6 +339,7 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	args := []string{
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
+		"--suppress-secrets",
 	}
 
 	cmd, err := GenerateCommand(fs, args...)
