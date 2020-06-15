@@ -193,7 +193,7 @@ func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
 		bs := []byte(fs.Content)
 		first := sha256.New()
 		first.Write(bs)
-		path := fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
+		path = fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
 		if err := ioutil.WriteFile(path, bs, 0700); err != nil {
 			return nil, err
 		}
