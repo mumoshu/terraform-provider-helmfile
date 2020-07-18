@@ -76,9 +76,10 @@ resource "helmfile_release_set" "mystack" {
     # Default: default
     environment = "prod"
 
-    # Environment variables available to helmfile's requireEnv
+    # Environment variables available to helmfile's requireEnv and commands being run by helmfile
     environment_variables = {
         FOO = "foo"
+        KUBECONFIG = "path/to/your/kubeconfig"
     }
     
     # State values to be passed to Helmfile
