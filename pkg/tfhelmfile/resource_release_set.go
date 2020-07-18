@@ -190,7 +190,7 @@ func SetApplyOutput(d *schema.ResourceData, v string) {
 	d.Set(KeyApplyOutput, v)
 }
 
-func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
+func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error) {
 	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
 		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
 	}
@@ -210,6 +210,7 @@ func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
 		"--environment", fs.Environment,
 		"--file", path,
 		"--helm-binary", fs.HelmBin,
+		"--no-color",
 	}
 	for k, v := range fs.Selector {
 		args = append(args, "--selector", fmt.Sprintf("%s=%s", k, v))
@@ -227,7 +228,7 @@ func GenerateCommand(fs *ReleaseSet, additionals ...string) (*exec.Cmd, error) {
 		}
 		args = append(args, "--state-values-file", tmpf)
 	}
-	cmd := exec.Command(fs.Bin, append(args, additionals...)...)
+	cmd := exec.Command(fs.Bin, append(args, additionalArgs...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
 	log.Printf("[DEBUG] Cmd: %s", strings.Join(cmd.Args, " "))
