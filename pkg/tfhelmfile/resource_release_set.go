@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -34,10 +33,11 @@ const HelmfileDefaultPath = "helmfile.yaml"
 
 func resourceShellHelmfileReleaseSet() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceReleaseSetCreate,
-		Delete: resourceReleaseSetDelete,
-		Read:   resourceReleaseSetRead,
-		Update: resourceReleaseSetUpdate,
+		Create:        resourceReleaseSetCreate,
+		Delete:        resourceReleaseSetDelete,
+		Read:          resourceReleaseSetRead,
+		Update:        resourceReleaseSetUpdate,
+		CustomizeDiff: resourceReleaseSetDiff,
 		Schema: map[string]*schema.Schema{
 			KeyValuesFiles: {
 				Type:     schema.TypeList,
@@ -102,9 +102,7 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 			},
 			KeyDiffOutput: {
 				Type:     schema.TypeString,
-				Optional: true,
-				// So that we can set this in `read` to instruct `terraform plan` to show diff as being disappear on `terraform apply`
-				Computed: false,
+				Computed: true,
 			},
 			KeyApplyOutput: {
 				Type:     schema.TypeString,
@@ -133,6 +131,10 @@ func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
 	return read(d, meta, []string{"read"})
 }
 
+func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
+	return diff(d, meta)
+}
+
 func resourceReleaseSetUpdate(d *schema.ResourceData, meta interface{}) error {
 	return update(d, meta, []string{"update"})
 }
@@ -158,7 +160,11 @@ type ReleaseSet struct {
 	Concurrency          int
 }
 
-func MustRead(d *schema.ResourceData) *ReleaseSet {
+type ResourceFields interface {
+	Get(string) interface{}
+}
+
+func MustRead(d ResourceFields) *ReleaseSet {
 	f := ReleaseSet{}
 	f.Environment = d.Get(KeyEnvironment).(string)
 	f.Path = d.Get(KeyPath).(string)
@@ -258,9 +264,6 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 	helmfileMutexKV.Unlock(releaseSetMutexKey)
 
-	//// Assume we won't have any diff after successful apply
-	//SetDiffOutput(d, "")
-
 	//create random uuid for the id
 	id := xid.New().String()
 	d.SetId(id)
@@ -276,9 +279,20 @@ func read(d *schema.ResourceData, meta interface{}, stack []string) error {
 	return readRs(fs, d, meta, stack)
 }
 
+func diff(d *schema.ResourceDiff, meta interface{}) error {
+	fs := MustRead(d)
+	return diffRs(fs, d, meta)
+}
+
 func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Reading release set resource...")
 	printStackTrace(stack)
+
+	return nil
+}
+
+func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
+	log.Printf("[DEBUG] Detecting changes on release set resource...")
 
 	args := []string{
 		"diff",
@@ -298,30 +312,19 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 	state := NewState()
 	newState, err := runCommand(cmd, state, true)
 	if err != nil {
-		return err
+		log.Printf("[DEBUG] Diff error detected: %v", err)
+
+		return nil
 	}
+
 	output := newState.Output
 
 	helmfileMutexKV.Unlock(releaseSetMutexKey)
-	if newState == nil {
-		log.Printf("[DEBUG] State from read operation was nil. Marking resource for deletion.")
-		d.SetId("")
-		return nil
-	}
 	log.Printf("[DEBUG] output:|%v|", output)
 	log.Printf("[DEBUG] new output:|%v|", newState.Output)
 
-	SetDiffOutput(d, output)
-	SetApplyOutput(d, "")
-
-	isStateEqual := reflect.DeepEqual(fs.DiffOutput, newState.Output)
-	isNewResource := d.IsNewResource()
-	isUpdatedResource := stack[0] == "update"
-	if !isStateEqual && !isNewResource && !isUpdatedResource {
-		log.Printf("[DEBUG] Previous state not equal to new state. Marking resource as dirty to trigger update.")
-		d.Set(KeyDirty, true)
-		return nil
-	}
+	d.SetNew(KeyDiffOutput, output)
+	d.SetNewComputed(KeyApplyOutput)
 
 	return nil
 }
@@ -333,6 +336,7 @@ func update(d *schema.ResourceData, meta interface{}, stack []string) error {
 
 func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Updating release set resource...")
+
 	d.Set(KeyDirty, false)
 	printStackTrace(stack)
 
@@ -353,6 +357,7 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
+		d.State()
 		return err
 	}
 
