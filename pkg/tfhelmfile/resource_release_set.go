@@ -300,6 +300,7 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--detailed-exitcode",
 		"--suppress-secrets",
+		"--context", "5",
 	}
 
 	cmd, err := GenerateCommand(fs, args...)
