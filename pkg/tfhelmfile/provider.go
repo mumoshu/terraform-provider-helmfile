@@ -21,12 +21,8 @@ func Provider() terraform.ResourceProvider {
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	config := Config{}
-
-	return config.Client()
+	return newConfig(), nil
 }
 
 // This is a global MutexKV for use within this plugin.
-var helmfileMutexKV = mutexkv.NewMutexKV()
-
-const releaseSetMutexKey = "releaseSetMutexKey"
+var mutexKV = mutexkv.NewMutexKV()

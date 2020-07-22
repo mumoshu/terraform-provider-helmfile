@@ -63,7 +63,7 @@ func resourceShellHelmfileRelease() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: false,
-				Default:  ".",
+				Default:  "",
 			},
 			KeyVerify: {
 				Type:     schema.TypeBool,

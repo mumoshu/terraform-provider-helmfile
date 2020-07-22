@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -70,13 +71,13 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: false,
-				Default:  ".",
+				Default:  "",
 			},
 			KeyPath: {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: false,
-				Default:  HelmfileDefaultPath,
+				Default:  "",
 			},
 			KeyContent: {
 				Type:     schema.TypeString,
@@ -166,6 +167,7 @@ type ReleaseSet struct {
 }
 
 type ResourceFields interface {
+	Id() string
 	Get(string) interface{}
 }
 
@@ -182,6 +184,21 @@ func MustRead(d ResourceFields) *ReleaseSet {
 	f.Values = d.Get(KeyValues).([]interface{})
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
+
+	log.Printf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
+
+	if f.Path != "" {
+		if info, err := os.Stat(f.Path); err != nil {
+			panic(err)
+		} else if info != nil && info.IsDir() {
+			f.WorkingDirectory = f.Path
+		} else {
+			f.WorkingDirectory = filepath.Dir(f.Path)
+		}
+	}
+
+	log.Printf("Printing computed working directory for %q: %s", d.Id(), f.WorkingDirectory)
+
 	f.EnvironmentVariables = d.Get(KeyEnvironmentVariables).(map[string]interface{})
 	f.Concurrency = d.Get(KeyConcurrency).(int)
 	return &f
@@ -199,18 +216,26 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
 		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
 	}
+
+	if err := os.MkdirAll(fs.WorkingDirectory, 0755); err != nil {
+		return nil, err
+	}
+
 	var path string
 	if fs.Content != "" {
 		bs := []byte(fs.Content)
 		first := sha256.New()
 		first.Write(bs)
 		path = fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
-		if err := ioutil.WriteFile(path, bs, 0700); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, path), bs, 0700); err != nil {
 			return nil, err
 		}
 	} else {
 		path = fs.Path
 	}
+
+	log.Printf("Taking diff with %+v", *fs)
+
 	args := []string{
 		"--environment", fs.Environment,
 		"--file", path,
@@ -228,7 +253,7 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 		first := sha256.New()
 		first.Write(js)
 		tmpf := fmt.Sprintf("temp.values-%x.yaml", first.Sum(nil))
-		if err := ioutil.WriteFile(tmpf, js, 0700); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, tmpf), js, 0700); err != nil {
 			return nil, err
 		}
 		args = append(args, "--state-values-file", tmpf)
@@ -236,7 +261,7 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 	cmd := exec.Command(fs.Bin, append(args, additionalArgs...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
-	log.Printf("[DEBUG] Cmd: %s", strings.Join(cmd.Args, " "))
+	log.Printf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
 	return cmd, nil
 }
 
@@ -261,8 +286,8 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 	d.MarkNewResource()
 	//obtain exclusive lock
-	helmfileMutexKV.Lock(releaseSetMutexKey)
-	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
@@ -286,6 +311,9 @@ func read(d *schema.ResourceData, meta interface{}, stack []string) error {
 }
 
 func diff(d *schema.ResourceDiff, meta interface{}) error {
+	old, new := d.GetChange(KeyWorkingDirectory)
+	log.Printf("Getting old and new working directories for id %q: old = %v, new = %v, got = %v", d.Id(), old, new, d.Get(KeyWorkingDirectory))
+
 	fs := MustRead(d)
 	return diffRs(fs, d, meta)
 }
@@ -320,8 +348,8 @@ func runBuild(fs *ReleaseSet) (*State, error) {
 	}
 
 	//obtain exclusive lock
-	helmfileMutexKV.Lock(releaseSetMutexKey)
-	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
 	return runCommand(cmd, state, true)
@@ -342,8 +370,8 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 	}
 
 	//obtain exclusive lock
-	helmfileMutexKV.Lock(releaseSetMutexKey)
-	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
 	return runCommand(cmd, state, true)
@@ -406,8 +434,8 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 
 	//obtain exclusive lock
-	helmfileMutexKV.Lock(releaseSetMutexKey)
-	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
@@ -441,8 +469,8 @@ func deleteRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 
 	//obtain exclusive lock
-	helmfileMutexKV.Lock(releaseSetMutexKey)
-	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
 	_, err = runCommand(cmd, state, false)
