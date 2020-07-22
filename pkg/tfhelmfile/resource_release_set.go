@@ -383,16 +383,16 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
 		d.State()
+
+		d.Set(KeyDiffOutput, "")
+		d.Set(KeyError, err.Error())
+		d.Set(KeyApplyOutput, "")
+
 		return err
 	}
 
-	SetApplyOutput(d, st.Output)
-
-	//if err := read(d, meta, stack); err != nil {
-	//	return err
-	//}
-	//
 	SetDiffOutput(d, "")
+	d.Set(KeyError, "")
 	SetApplyOutput(d, st.Output)
 
 	return nil
