@@ -293,18 +293,38 @@ func diff(d *schema.ResourceDiff, meta interface{}) error {
 func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Reading release set resource...")
 
-	state, err := runDiff(fs)
+	// We run `helmfile build` against the state BEFORE the planned change,
+	// to make sure any error in helmfile.yaml before successful apply is shown to the user.
+	_, err := runBuild(fs)
 	if err != nil {
-		log.Printf("[DEBUG] Diff error detected: %v", err)
+		log.Printf("[DEBUG] Build error detected: %v", err)
 
 		d.Set(KeyError, err.Error())
 
 		return nil
 	}
 
-	d.Set(KeyDiffOutput, state.Output)
+	//d.Set(KeyDiffOutput, state.Output)
 
 	return nil
+}
+
+func runBuild(fs *ReleaseSet) (*State, error) {
+	args := []string{
+		"build",
+	}
+
+	cmd, err := GenerateCommand(fs, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	//obtain exclusive lock
+	helmfileMutexKV.Lock(releaseSetMutexKey)
+	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
+
+	state := NewState()
+	return runCommand(cmd, state, true)
 }
 
 func runDiff(fs *ReleaseSet) (*State, error) {
@@ -332,16 +352,26 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	log.Printf("[DEBUG] Detecting changes on release set resource...")
 
-	_, err := runDiff(fs)
+	state, err := runDiff(fs)
 	if err != nil {
 		log.Printf("[DEBUG] Diff error detected: %v", err)
 
+		// Make sure errors due to the latest `helmfile diff` run is shown to the user
+		// d.SetNew(KeyError, err.Error())
+
+		// We return the error to stop terraform from modifying the state AND
+		// let the user knows about the error.
 		return err
 	}
 
-	d.SetNew(KeyDiffOutput, "")
+	// We should ideally show this like `~ diff_output = <DIFF> -> (known after apply)`,
+	// but it's shown as `~ diff_output = <DIFF>`, which is counter-intuitive.
+	// But I wasn't able to find any way to achieve that.
+	d.SetNew(KeyDiffOutput, state.Output)
 	//d.SetNewComputed(KeyDiffOutput)
 
+	// Show the possibly transient error to disappear after successful apply.
+	//
 	// Seems like SetNew(KEY, "") is equivalent to SetNewComputed(KEY), according to the result below that is obtained
 	// with SetNew:
 	//         ~ error                 = "/Users/c-ykuoka/go/bin/helmfile: exit status 1\nin ./helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: failed to read helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: reading document at index 1: yaml: line 2: mapping values are not allowed in this context\n" -> (known after apply)
@@ -384,7 +414,6 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	if err != nil {
 		d.State()
 
-		d.Set(KeyDiffOutput, "")
 		d.Set(KeyError, err.Error())
 		d.Set(KeyApplyOutput, "")
 
