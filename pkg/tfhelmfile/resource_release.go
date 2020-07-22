@@ -129,6 +129,10 @@ func resourceShellHelmfileRelease() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			KeyError: {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			KeyDirty: {
 				Type:     schema.TypeBool,
 				Optional: true,

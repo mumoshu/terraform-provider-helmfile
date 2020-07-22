@@ -25,6 +25,7 @@ const KeyEnvironment = "environment"
 const KeyBin = "binary"
 const KeyHelmBin = "helm_binary"
 const KeyDiffOutput = "diff_output"
+const KeyError = "error"
 const KeyApplyOutput = "apply_output"
 const KeyDirty = "dirty"
 const KeyConcurrency = "concurrency"
@@ -105,6 +106,10 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 				Computed: true,
 			},
 			KeyApplyOutput: {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			KeyError: {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -287,14 +292,22 @@ func diff(d *schema.ResourceDiff, meta interface{}) error {
 
 func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Reading release set resource...")
-	printStackTrace(stack)
+
+	state, err := runDiff(fs)
+	if err != nil {
+		log.Printf("[DEBUG] Diff error detected: %v", err)
+
+		d.Set(KeyError, err.Error())
+
+		return nil
+	}
+
+	d.Set(KeyDiffOutput, state.Output)
 
 	return nil
 }
 
-func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
-	log.Printf("[DEBUG] Detecting changes on release set resource...")
-
+func runDiff(fs *ReleaseSet) (*State, error) {
 	args := []string{
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
@@ -305,7 +318,7 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 
 	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	//obtain exclusive lock
@@ -313,19 +326,28 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
 
 	state := NewState()
-	newState, err := runCommand(cmd, state, true)
+	return runCommand(cmd, state, true)
+}
+
+func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
+	log.Printf("[DEBUG] Detecting changes on release set resource...")
+
+	_, err := runDiff(fs)
 	if err != nil {
 		log.Printf("[DEBUG] Diff error detected: %v", err)
 
-		return nil
+		return err
 	}
 
-	output := newState.Output
+	d.SetNew(KeyDiffOutput, "")
+	//d.SetNewComputed(KeyDiffOutput)
 
-	log.Printf("[DEBUG] output:|%v|", output)
-	log.Printf("[DEBUG] new output:|%v|", newState.Output)
+	// Seems like SetNew(KEY, "") is equivalent to SetNewComputed(KEY), according to the result below that is obtained
+	// with SetNew:
+	//         ~ error                 = "/Users/c-ykuoka/go/bin/helmfile: exit status 1\nin ./helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: failed to read helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: reading document at index 1: yaml: line 2: mapping values are not allowed in this context\n" -> (known after apply)
+	d.SetNew(KeyError, "")
+	//d.SetNewComputed(KeyError)
 
-	d.SetNew(KeyDiffOutput, output)
 	d.SetNewComputed(KeyApplyOutput)
 
 	return nil
