@@ -217,8 +217,10 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
 	}
 
-	if err := os.MkdirAll(fs.WorkingDirectory, 0755); err != nil {
-		return nil, err
+	if fs.WorkingDirectory != "" {
+		if err := os.MkdirAll(fs.WorkingDirectory, 0755); err != nil {
+			return nil, fmt.Errorf("creating working directory %q: %w", fs.WorkingDirectory, err)
+		}
 	}
 
 	var path string
