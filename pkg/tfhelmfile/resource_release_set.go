@@ -257,13 +257,13 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	d.MarkNewResource()
 	//obtain exclusive lock
 	helmfileMutexKV.Lock(releaseSetMutexKey)
+	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
 
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
 		return err
 	}
-	helmfileMutexKV.Unlock(releaseSetMutexKey)
 
 	//create random uuid for the id
 	id := xid.New().String()
@@ -310,6 +310,7 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 
 	//obtain exclusive lock
 	helmfileMutexKV.Lock(releaseSetMutexKey)
+	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
 
 	state := NewState()
 	newState, err := runCommand(cmd, state, true)
@@ -321,7 +322,6 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 
 	output := newState.Output
 
-	helmfileMutexKV.Unlock(releaseSetMutexKey)
 	log.Printf("[DEBUG] output:|%v|", output)
 	log.Printf("[DEBUG] new output:|%v|", newState.Output)
 
@@ -355,6 +355,7 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 
 	//obtain exclusive lock
 	helmfileMutexKV.Lock(releaseSetMutexKey)
+	defer helmfileMutexKV.Unlock(releaseSetMutexKey)
 
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
@@ -364,8 +365,6 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 
 	SetApplyOutput(d, st.Output)
-
-	helmfileMutexKV.Unlock(releaseSetMutexKey)
 
 	//if err := read(d, meta, stack); err != nil {
 	//	return err

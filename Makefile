@@ -26,7 +26,7 @@ ${DIST_PATH}/${PLUGIN_NAME}: ${GO_FILES}
 build: ${DIST_PATH}/${PLUGIN_NAME}
 
 .PHONY: install
-install: build
+install: clean build
 	mkdir -p $(PLUGIN_PATH); \
 	rm -rf $(PLUGIN_PATH)/${PLUGIN_NAME}; \
 	install -m 0755 $(DIST_PATH)/${PLUGIN_NAME} $(PLUGIN_PATH)/${PLUGIN_NAME}
