@@ -171,7 +171,7 @@ type ResourceFields interface {
 	Get(string) interface{}
 }
 
-func MustRead(d ResourceFields) *ReleaseSet {
+func MustRead(d ResourceFields) (*ReleaseSet, error) {
 	f := ReleaseSet{}
 	f.Environment = d.Get(KeyEnvironment).(string)
 	f.Path = d.Get(KeyPath).(string)
@@ -189,7 +189,9 @@ func MustRead(d ResourceFields) *ReleaseSet {
 
 	if f.Path != "" {
 		if info, err := os.Stat(f.Path); err != nil {
-			panic(err)
+			if !os.IsNotExist(err) {
+				return nil, fmt.Errorf("verifying working_directory %q: %w", f.Path, err)
+			}
 		} else if info != nil && info.IsDir() {
 			f.WorkingDirectory = f.Path
 		} else {
@@ -201,7 +203,7 @@ func MustRead(d ResourceFields) *ReleaseSet {
 
 	f.EnvironmentVariables = d.Get(KeyEnvironmentVariables).(map[string]interface{})
 	f.Concurrency = d.Get(KeyConcurrency).(int)
-	return &f
+	return &f, nil
 }
 
 func SetDiffOutput(d *schema.ResourceData, v string) {
@@ -268,7 +270,10 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 }
 
 func create(d *schema.ResourceData, meta interface{}, stack []string) error {
-	fs := MustRead(d)
+	fs, err := MustRead(d)
+	if err != nil {
+		return err
+	}
 	return createRs(fs, d, meta, stack)
 }
 
@@ -308,7 +313,10 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 }
 
 func read(d *schema.ResourceData, meta interface{}, stack []string) error {
-	fs := MustRead(d)
+	fs, err := MustRead(d)
+	if err != nil {
+		return err
+	}
 	return readRs(fs, d, meta, stack)
 }
 
@@ -316,7 +324,11 @@ func diff(d *schema.ResourceDiff, meta interface{}) error {
 	old, new := d.GetChange(KeyWorkingDirectory)
 	log.Printf("Getting old and new working directories for id %q: old = %v, new = %v, got = %v", d.Id(), old, new, d.Get(KeyWorkingDirectory))
 
-	fs := MustRead(d)
+	fs, err := MustRead(d)
+	if err != nil {
+		return err
+	}
+
 	return diffRs(fs, d, meta)
 }
 
@@ -382,6 +394,13 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	log.Printf("[DEBUG] Detecting changes on release set resource...")
 
+	if fs.Path != "" {
+		_, err := os.Stat(fs.Path)
+		if err != nil {
+			return fmt.Errorf("verifying path %q: %w", fs.Path, err)
+		}
+	}
+
 	state, err := runDiff(fs)
 	if err != nil {
 		log.Printf("[DEBUG] Diff error detected: %v", err)
@@ -414,7 +433,10 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 }
 
 func update(d *schema.ResourceData, meta interface{}, stack []string) error {
-	fs := MustRead(d)
+	fs, err := MustRead(d)
+	if err != nil {
+		return err
+	}
 	return updateRs(fs, d, meta, stack)
 }
 
@@ -458,7 +480,10 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 }
 
 func delete(d *schema.ResourceData, meta interface{}, stack []string) error {
-	fs := MustRead(d)
+	fs, err := MustRead(d)
+	if err != nil {
+		return err
+	}
 	return deleteRs(fs, d, meta, stack)
 }
 
