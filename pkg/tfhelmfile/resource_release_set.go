@@ -173,14 +173,36 @@ type ResourceFields interface {
 
 func MustRead(d ResourceFields) (*ReleaseSet, error) {
 	f := ReleaseSet{}
-	f.Environment = d.Get(KeyEnvironment).(string)
-	f.Path = d.Get(KeyPath).(string)
-	f.Content = d.Get(KeyContent).(string)
+
+	// environment defaults to "helm" for helmfile_release_set but it's always nil for helmfile_release.
+	// This nil-check is required to handle the latter case. Otherwise it ends up with:
+	//   panic: interface conversion: interface {} is nil, not string
+	if env := d.Get(KeyEnvironment); env != nil {
+		f.Environment = env.(string)
+	}
+	// environment defaults to "" for helmfile_release_set but it's always nil for helmfile_release.
+	// This nil-check is required to handle the latter case. Otherwise it ends up with:
+	//   panic: interface conversion: interface {} is nil, not string
+	if path := d.Get(KeyPath); path != nil {
+		f.Path = path.(string)
+	}
+
+	if content := d.Get(KeyContent); content != nil {
+		f.Content = content.(string)
+	}
+
 	f.DiffOutput = d.Get(KeyDiffOutput).(string)
 	f.ApplyOutput = d.Get(KeyApplyOutput).(string)
 	f.HelmBin = d.Get(KeyHelmBin).(string)
-	f.Selector = d.Get(KeySelector).(map[string]interface{})
-	f.ValuesFiles = d.Get(KeyValuesFiles).([]interface{})
+
+	if selector := d.Get(KeySelector); selector != nil {
+		f.Selector = selector.(map[string]interface{})
+	}
+
+	if valuesFiles := d.Get(KeyValuesFiles); valuesFiles != nil {
+		f.ValuesFiles = valuesFiles.([]interface{})
+	}
+
 	f.Values = d.Get(KeyValues).([]interface{})
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
@@ -201,8 +223,13 @@ func MustRead(d ResourceFields) (*ReleaseSet, error) {
 
 	log.Printf("Printing computed working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
-	f.EnvironmentVariables = d.Get(KeyEnvironmentVariables).(map[string]interface{})
-	f.Concurrency = d.Get(KeyConcurrency).(int)
+	if environmentVariables := d.Get(KeyEnvironmentVariables); environmentVariables != nil {
+		f.EnvironmentVariables = environmentVariables.(map[string]interface{})
+	}
+
+	if concurrency := d.Get(KeyConcurrency); concurrency != nil {
+		f.Concurrency = concurrency.(int)
+	}
 	return &f, nil
 }
 

@@ -3,6 +3,6 @@ releases:
   chart: sp/podinfo
   values:
   - image:
-      tag: foobar2aa
+      tag: foobar2abcd
   labels:
     labelkey1: value1

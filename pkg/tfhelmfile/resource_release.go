@@ -24,10 +24,11 @@ const KeyKubeconfig = "kubeconfig"
 
 func resourceShellHelmfileRelease() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceReleaseCreate,
-		Delete: resourceReleaseDelete,
-		Read:   resourceReleaseRead,
-		Update: resourceReleaseUpdate,
+		Create:        resourceReleaseCreate,
+		Delete:        resourceReleaseDelete,
+		Read:          resourceReleaseRead,
+		Update:        resourceReleaseUpdate,
+		CustomizeDiff: resourceReleaseDiff,
 		Schema: map[string]*schema.Schema{
 			KeyNamespace: {
 				Type:     schema.TypeString,
@@ -121,9 +122,7 @@ func resourceShellHelmfileRelease() *schema.Resource {
 			},
 			KeyDiffOutput: {
 				Type:     schema.TypeString,
-				Optional: true,
-				// So that we can set this in `read` to instruct `terraform plan` to show diff as being disappear on `terraform apply`
-				Computed: false,
+				Computed: true,
 			},
 			KeyApplyOutput: {
 				Type:     schema.TypeString,
@@ -167,6 +166,14 @@ func resourceReleaseUpdate(d *schema.ResourceData, meta interface{}) error {
 	return updateRs(rs, d, meta, []string{"update"})
 }
 
+func resourceReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
+	rs, err := mustReadReleasetSetForRelease(d)
+	if err != nil {
+		return err
+	}
+	return diffRs(rs, d, meta)
+}
+
 func resourceReleaseDelete(d *schema.ResourceData, meta interface{}) error {
 	rs, err := mustReadReleasetSetForRelease(d)
 	if err != nil {
@@ -196,11 +203,16 @@ type Release struct {
 	ApplyOutput      string
 }
 
-func mustReadReleasetSetForRelease(d *schema.ResourceData) (*ReleaseSet, error) {
+func mustReadReleasetSetForRelease(d resource) (*ReleaseSet, error) {
 	return generateHelmfileYaml(mustReadRelease(d))
 }
 
-func mustReadRelease(d *schema.ResourceData) *Release {
+type resource interface {
+	Get(string) interface{}
+	Id() string
+}
+
+func mustReadRelease(d resource) *Release {
 	f := Release{}
 	f.Namespace = d.Get(KeyNamespace).(string)
 	f.Name = d.Get(KeyName).(string)
