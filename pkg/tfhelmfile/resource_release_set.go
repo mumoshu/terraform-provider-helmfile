@@ -443,7 +443,7 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	// We should ideally show this like `~ diff_output = <DIFF> -> (known after apply)`,
 	// but it's shown as `~ diff_output = <DIFF>`, which is counter-intuitive.
 	// But I wasn't able to find any way to achieve that.
-	d.SetNew(KeyDiffOutput, state.Output)
+	//d.SetNew(KeyDiffOutput, state.Output)
 	//d.SetNewComputed(KeyDiffOutput)
 
 	// Show the possibly transient error to disappear after successful apply.
@@ -451,10 +451,17 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	// Seems like SetNew(KEY, "") is equivalent to SetNewComputed(KEY), according to the result below that is obtained
 	// with SetNew:
 	//         ~ error                 = "/Users/c-ykuoka/go/bin/helmfile: exit status 1\nin ./helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: failed to read helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: reading document at index 1: yaml: line 2: mapping values are not allowed in this context\n" -> (known after apply)
-	d.SetNew(KeyError, "")
+	//d.SetNew(KeyError, "")
 	//d.SetNewComputed(KeyError)
 
-	d.SetNewComputed(KeyApplyOutput)
+	// Mark apply output for changes to instruct the user to run `terraform apply`
+	// Marking it when there's no diff output means `terraform plan` always show changes, which defeats the purpose of
+	// `plan`.
+	if state.Output != "" {
+		d.SetNew(KeyDiffOutput, state.Output)
+		d.SetNewComputed(KeyError)
+		d.SetNewComputed(KeyApplyOutput)
+	}
 
 	return nil
 }
@@ -471,7 +478,13 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	log.Printf("[DEBUG] Updating release set resource...")
 
 	d.Set(KeyDirty, false)
-	printStackTrace(stack)
+
+	diff, err := runDiff(fs)
+	if err != nil {
+		log.Printf("[DEBUG] Diff error detected: %v", err)
+
+		return err
+	}
 
 	args := []string{
 		"apply",
@@ -499,7 +512,7 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 		return err
 	}
 
-	SetDiffOutput(d, "")
+	SetDiffOutput(d, diff.Output)
 	d.Set(KeyError, "")
 	SetApplyOutput(d, st.Output)
 
