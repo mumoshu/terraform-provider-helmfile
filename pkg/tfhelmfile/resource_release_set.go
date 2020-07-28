@@ -1,6 +1,8 @@
 package tfhelmfile
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
@@ -233,10 +235,6 @@ func MustRead(d ResourceFields) (*ReleaseSet, error) {
 	return &f, nil
 }
 
-func SetDiffOutput(d *schema.ResourceData, v string) {
-	d.Set(KeyDiffOutput, v)
-}
-
 func SetApplyOutput(d *schema.ResourceData, v string) {
 	d.Set(KeyApplyOutput, v)
 }
@@ -334,7 +332,7 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	d.SetId(id)
 
 	SetApplyOutput(d, st.Output)
-	SetDiffOutput(d, "")
+	//SetDiffOutput(d, "")
 
 	return nil
 }
@@ -418,6 +416,22 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 	return runCommand(cmd, state, true)
 }
 
+// diffRs detects diff to be included in the terraform plan by runnning `helmfile diff`.
+// Beware that this function MUST be idempotent and the result is reliable.
+//
+// `terraform apply` seem to run diff twice, and if this function emitted a result different than the first run results in
+// errors like:
+//
+//   When expanding the plan for helmfile_release_set.mystack to include new values
+//   learned so far during apply, provider "registry.terraform.io/-/helmfile"
+//   produced an invalid new value for .diff_output: was cty.StringVal("Adding repo
+//   ...
+//   a lot of text
+//   ...
+//   but now cty.StringVal("Adding repo stable
+//   ...
+//   a lot of text
+//   ...
 func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	log.Printf("[DEBUG] Detecting changes on release set resource...")
 
@@ -458,7 +472,21 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	// Marking it when there's no diff output means `terraform plan` always show changes, which defeats the purpose of
 	// `plan`.
 	if state.Output != "" {
-		d.SetNew(KeyDiffOutput, state.Output)
+		buf := &bytes.Buffer{}
+		w := bufio.NewWriter(buf)
+
+		b := bufio.NewScanner(strings.NewReader(state.Output))
+		for b.Scan() {
+			l := b.Text()
+			if !strings.HasPrefix(l, "...Successfully got an update from the \"") {
+				_, err := w.WriteString(l)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		d.SetNew(KeyDiffOutput, buf.String())
 		d.SetNewComputed(KeyError)
 		d.SetNewComputed(KeyApplyOutput)
 	}
@@ -479,13 +507,6 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 
 	d.Set(KeyDirty, false)
 
-	diff, err := runDiff(fs)
-	if err != nil {
-		log.Printf("[DEBUG] Diff error detected: %v", err)
-
-		return err
-	}
-
 	args := []string{
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
@@ -504,15 +525,12 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
-		d.State()
-
 		d.Set(KeyError, err.Error())
 		d.Set(KeyApplyOutput, "")
 
 		return err
 	}
 
-	SetDiffOutput(d, diff.Output)
 	d.Set(KeyError, "")
 	SetApplyOutput(d, st.Output)
 
@@ -545,7 +563,7 @@ func deleteRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 		return err
 	}
 
-	SetDiffOutput(d, "")
+	//SetDiffOutput(d, "")
 
 	d.SetId("")
 
