@@ -400,7 +400,7 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--detailed-exitcode",
 		"--suppress-secrets",
-		"--context", "5",
+		"--context", "3",
 	}
 
 	cmd, err := GenerateCommand(fs, args...)
