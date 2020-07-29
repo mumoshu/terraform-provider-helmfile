@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
 )
 
@@ -74,7 +73,7 @@ func runCommand(cmd *exec.Cmd, state *State, diffMode bool) (*State, error) {
 	cmd.Stderr = pw
 	cmd.Stdout = pw
 
-	output, _ := circbuf.NewBuffer(maxBufSize)
+	output := &bytes.Buffer{}
 
 	// Write everything we read from the pipe to the output buffer too
 	tee := io.TeeReader(pr, output)
