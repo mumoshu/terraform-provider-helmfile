@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -263,7 +264,7 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 		path = fs.Path
 	}
 
-	log.Printf("Taking diff with %+v", *fs)
+	log.Printf("Running helmfile %s on %+v", strings.Join(additionalArgs, " "), *fs)
 
 	args := []string{
 		"--environment", fs.Environment,
@@ -416,6 +417,61 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 	return runCommand(cmd, state, true)
 }
 
+func getDiffFile(fs *ReleaseSet) (string, error) {
+	build, err := runBuild(fs)
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha256.New()
+	hash.Write([]byte(build.Output))
+	bs, err := json.Marshal(fs)
+	if err != nil {
+		return "", err
+	}
+	hash.Write(bs)
+	diffFile := filepath.Join(".terraform", "helmfile", fmt.Sprintf("diff-%x", hash.Sum(nil)))
+
+	return diffFile, nil
+}
+
+func writeDiffFile(fs *ReleaseSet, content string) error {
+	diffFile, err := getDiffFile(fs)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(diffFile), 0755); err != nil {
+		return fmt.Errorf("creating directory for diff file %s: %v", diffFile, err)
+	}
+
+	log.Printf("Writing diff file to %s", diffFile)
+
+	if err := ioutil.WriteFile(diffFile, []byte(content), 0644); err != nil {
+		return fmt.Errorf("writing diff to %s: %v", diffFile, err)
+	}
+
+	return nil
+}
+
+func readDiffFile(fs *ReleaseSet) (string, error) {
+	diffFile, err := getDiffFile(fs)
+	if err != nil {
+		return "", err
+	}
+
+	bs, err := ioutil.ReadFile(diffFile)
+	if err != nil {
+		return "", err
+	}
+
+	if len(bs) > 0 {
+		log.Printf("[DEBUG] Skipped running helmfile-diff on resource because we already have changes on diff: %+v", *fs)
+	}
+
+	return string(bs), nil
+}
+
 // diffRs detects diff to be included in the terraform plan by runnning `helmfile diff`.
 // Beware that this function MUST be idempotent and the result is reliable.
 //
@@ -442,56 +498,67 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 		}
 	}
 
-	state, err := runDiff(fs)
+	diff, err := readDiffFile(fs)
 	if err != nil {
-		log.Printf("[DEBUG] Diff error detected: %v", err)
+		state, err := runDiff(fs)
+		if err != nil {
+			log.Printf("[DEBUG] Diff error detected: %v", err)
 
-		// Make sure errors due to the latest `helmfile diff` run is shown to the user
-		// d.SetNew(KeyError, err.Error())
+			// Make sure errors due to the latest `helmfile diff` run is shown to the user
+			// d.SetNew(KeyError, err.Error())
 
-		// We return the error to stop terraform from modifying the state AND
-		// let the user knows about the error.
-		return err
-	}
+			// We return the error to stop terraform from modifying the state AND
+			// let the user knows about the error.
+			return err
+		}
 
-	// We should ideally show this like `~ diff_output = <DIFF> -> (known after apply)`,
-	// but it's shown as `~ diff_output = <DIFF>`, which is counter-intuitive.
-	// But I wasn't able to find any way to achieve that.
-	//d.SetNew(KeyDiffOutput, state.Output)
-	//d.SetNewComputed(KeyDiffOutput)
+		// We should ideally show this like `~ diff_output = <DIFF> -> (known after apply)`,
+		// but it's shown as `~ diff_output = <DIFF>`, which is counter-intuitive.
+		// But I wasn't able to find any way to achieve that.
+		//d.SetNew(KeyDiffOutput, state.Output)
+		//d.SetNewComputed(KeyDiffOutput)
 
-	// Show the possibly transient error to disappear after successful apply.
-	//
-	// Seems like SetNew(KEY, "") is equivalent to SetNewComputed(KEY), according to the result below that is obtained
-	// with SetNew:
-	//         ~ error                 = "/Users/c-ykuoka/go/bin/helmfile: exit status 1\nin ./helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: failed to read helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: reading document at index 1: yaml: line 2: mapping values are not allowed in this context\n" -> (known after apply)
-	//d.SetNew(KeyError, "")
-	//d.SetNewComputed(KeyError)
+		// Show the possibly transient error to disappear after successful apply.
+		//
+		// Seems like SetNew(KEY, "") is equivalent to SetNewComputed(KEY), according to the result below that is obtained
+		// with SetNew:
+		//         ~ error                 = "/Users/c-ykuoka/go/bin/helmfile: exit status 1\nin ./helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: failed to read helmfile-b96f019fb6b4f691ffca8269edb33ffb16cb60a20c769013049c1181ebf7ecc9.yaml: reading document at index 1: yaml: line 2: mapping values are not allowed in this context\n" -> (known after apply)
+		//d.SetNew(KeyError, "")
+		//d.SetNewComputed(KeyError)
 
-	// Mark apply output for changes to instruct the user to run `terraform apply`
-	// Marking it when there's no diff output means `terraform plan` always show changes, which defeats the purpose of
-	// `plan`.
-	if state.Output != "" {
-		buf := &bytes.Buffer{}
-		w := bufio.NewWriter(buf)
+		// Mark apply output for changes to instruct the user to run `terraform apply`
+		// Marking it when there's no diff output means `terraform plan` always show changes, which defeats the purpose of
+		// `plan`.
+		if state.Output != "" {
+			buf := &bytes.Buffer{}
+			w := bufio.NewWriter(buf)
 
-		b := bufio.NewScanner(strings.NewReader(state.Output))
-		for b.Scan() {
-			l := b.Text()
-			if !strings.HasPrefix(l, "...Successfully got an update from the \"") {
-				if _, err := w.WriteString(l); err != nil {
-					return err
-				}
-				if _, err := w.WriteRune('\n'); err != nil {
-					return err
+			b := bufio.NewScanner(strings.NewReader(state.Output))
+			for b.Scan() {
+				l := b.Text()
+				if !strings.HasPrefix(l, "...Successfully got an update from the \"") {
+					if _, err := w.WriteString(l); err != nil {
+						return err
+					}
+					if _, err := w.WriteRune('\n'); err != nil {
+						return err
+					}
 				}
 			}
-		}
-		if err := w.Flush(); err != nil {
-			return fmt.Errorf("filtering helmfile diff output: %v", err)
-		}
+			if err := w.Flush(); err != nil {
+				return fmt.Errorf("filtering helmfile diff output: %v", err)
+			}
 
-		d.SetNew(KeyDiffOutput, buf.String())
+			diff = buf.String()
+
+			if err := writeDiffFile(fs, diff); err != nil {
+				return err
+			}
+		}
+	}
+
+	if diff != "" {
+		d.SetNew(KeyDiffOutput, diff)
 		d.SetNewComputed(KeyError)
 		d.SetNewComputed(KeyApplyOutput)
 	}
