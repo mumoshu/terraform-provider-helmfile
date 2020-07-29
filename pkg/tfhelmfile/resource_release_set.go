@@ -479,11 +479,16 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 		for b.Scan() {
 			l := b.Text()
 			if !strings.HasPrefix(l, "...Successfully got an update from the \"") {
-				_, err := w.WriteString(l)
-				if err != nil {
+				if _, err := w.WriteString(l); err != nil {
+					return err
+				}
+				if _, err := w.WriteRune('\n'); err != nil {
 					return err
 				}
 			}
+		}
+		if err := w.Flush(); err != nil {
+			return fmt.Errorf("filtering helmfile diff output: %v", err)
 		}
 
 		d.SetNew(KeyDiffOutput, buf.String())
