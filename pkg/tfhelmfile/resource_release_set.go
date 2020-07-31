@@ -361,7 +361,7 @@ func diff(d *schema.ResourceDiff, meta interface{}) error {
 func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Reading release set resource...")
 
-	// We treats diff_output as always empty, to show `helmfile diff` output as the complete the diff,
+	// We treat diff_output as always empty, to show `helmfile diff` output as the complete the diff,
 	// rather than showing diff of diffs.
 	//
 	// `terraform plan` shows diff on diff_output between the value after Read and CustomizeDiff.
