@@ -361,6 +361,20 @@ func diff(d *schema.ResourceDiff, meta interface{}) error {
 func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
 	log.Printf("[DEBUG] Reading release set resource...")
 
+	// We treats diff_output as always empty, to show `helmfile diff` output as the complete the diff,
+	// rather than showing diff of diffs.
+	//
+	// `terraform plan` shows diff on diff_output between the value after Read and CustomizeDiff.
+	// So we set it empty here, in terraform resource's Read,
+	// and set it non-empty later, in terraform resource's CustomizeDiff.
+	// This way, terraform shows the diff between an empty string and non-empty string(full helmfile diff output),
+	// which gives us what we want.
+	//
+	// Note that just emptying diff_output on storing it to the terraform state in StateFunc doesn't work.
+	// StateFunc is called after Read and CustomizeDiff, which results in terraform showing diff of
+	// an empty string against an empty string, which is ovbiously not what we want.
+	d.Set(KeyDiffOutput, "")
+
 	// We run `helmfile build` against the state BEFORE the planned change,
 	// to make sure any error in helmfile.yaml before successful apply is shown to the user.
 	_, err := runBuild(fs)
