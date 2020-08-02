@@ -409,6 +409,24 @@ func runBuild(fs *ReleaseSet) (*State, error) {
 	return runCommand(cmd, state, true)
 }
 
+func runTemplate(fs *ReleaseSet) (*State, error) {
+	args := []string{
+		"template",
+	}
+
+	cmd, err := GenerateCommand(fs, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	//obtain exclusive lock
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
+
+	state := NewState()
+	return runCommand(cmd, state, false)
+}
+
 func runDiff(fs *ReleaseSet) (*State, error) {
 	args := []string{
 		"diff",
@@ -432,13 +450,18 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 }
 
 func getDiffFile(fs *ReleaseSet) (string, error) {
-	build, err := runBuild(fs)
+	tmpl, err := runTemplate(fs)
+	if err != nil {
+		return "", err
+	}
+
+	determinisitcOutput, err := removeNondeterministicLogLines(tmpl.Output)
 	if err != nil {
 		return "", err
 	}
 
 	hash := sha256.New()
-	hash.Write([]byte(build.Output))
+	hash.Write([]byte(determinisitcOutput))
 	bs, err := json.Marshal(fs)
 	if err != nil {
 		return "", err
@@ -544,26 +567,10 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 		// Marking it when there's no diff output means `terraform plan` always show changes, which defeats the purpose of
 		// `plan`.
 		if state.Output != "" {
-			buf := &bytes.Buffer{}
-			w := bufio.NewWriter(buf)
-
-			b := bufio.NewScanner(strings.NewReader(state.Output))
-			for b.Scan() {
-				l := b.Text()
-				if !strings.HasPrefix(l, "...Successfully got an update from the \"") {
-					if _, err := w.WriteString(l); err != nil {
-						return err
-					}
-					if _, err := w.WriteRune('\n'); err != nil {
-						return err
-					}
-				}
+			diff, err = removeNondeterministicLogLines(state.Output)
+			if err != nil {
+				return err
 			}
-			if err := w.Flush(); err != nil {
-				return fmt.Errorf("filtering helmfile diff output: %v", err)
-			}
-
-			diff = buf.String()
 
 			if err := writeDiffFile(fs, diff); err != nil {
 				return err
@@ -578,6 +585,38 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 	}
 
 	return nil
+}
+
+// Until https://github.com/roboll/helmfile/pull/1383 and Helmfile v0.125.1,
+// various helmfile command was running `helm repo up` to update Helm chart repositories before diff/template/apply.
+// `helm repo up` seems to update repositories concnurrently, in an nondeterministic order, which makes the stdout printed by the command
+// nondeterministic.
+//
+// This provider uses output of `helmfile template` to calculate the hash key of the helmfile-diff cache, which is used
+// to make originally non-determinisitc `helmfile-diff` result to be determinisitc.
+// IN `removeNondeterministicLogLines`, we remove non-deterministic part of `helm repo up`, so that the provider reliably
+// work with older versions of Helmfile.
+func removeNondeterministicLogLines(s string) (string, error) {
+	buf := &bytes.Buffer{}
+	w := bufio.NewWriter(buf)
+
+	b := bufio.NewScanner(strings.NewReader(s))
+	for b.Scan() {
+		l := b.Text()
+		if !strings.HasPrefix(l, "...Successfully got an update from the \"") {
+			if _, err := w.WriteString(l); err != nil {
+				return "", err
+			}
+			if _, err := w.WriteRune('\n'); err != nil {
+				return "", err
+			}
+		}
+	}
+	if err := w.Flush(); err != nil {
+		return "", fmt.Errorf("filtering helmfile diff output: %v", err)
+	}
+
+	return buf.String(), nil
 }
 
 func update(d *schema.ResourceData, meta interface{}, stack []string) error {
