@@ -10,7 +10,26 @@ Benefits:
 
 ## Prerequisites
 
-Install the `terraform-provider-helmfile` binary under `terraform.d/plugins/${OS}_${ARCH}`.
+**For Terraform 0.12:**
+
+Install the `terraform-provider-helmfile` binary under `.terraform/plugins/${OS}_${ARCH}`, so that the binary is at e.g. `${WORKSPACE}/.terraform/plugins/darwin_amd64/terraform-provider-helmfile`.
+
+**For Terraform 0.13 and later:**
+
+The provider is [available at Terraform Registry](https://registry.terraform.io/providers/mumoshu/helmfile/latest?pollNotifications=true) so you can just add the following to your tf file for installation:
+
+```
+terraform {
+  required_providers {
+    helmfile = {
+      source = "mumoshu/helmfile"
+      version = "VERSION"
+    }
+  }
+}
+```
+
+Please replace `VERSION` with the version number of the provider without the `v` prefix, like `0.3.14`. 
 
 ## Examples
 
