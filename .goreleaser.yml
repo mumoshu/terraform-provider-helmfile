@@ -28,6 +28,9 @@ builds:
   ignore:
   - goos: darwin
     goarch: '386'
+  # Prevent "error=failed to build for freebsd_arm64: cmd/go: unsupported GOOS/GOARCH pair freebsd/arm64"
+  - goos: freebsd
+    goarch: arm64
   binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
 - format: zip
