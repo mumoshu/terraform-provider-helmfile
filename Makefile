@@ -54,3 +54,9 @@ example/destroy:
 .PHONY: clean
 clean:
 	rm -rf ${DIST_PATH}/*
+
+.PHONY: release
+release:
+	echo Please set GPG_FINGERPRINT
+	gpg --armor --detach-sign
+	goreleaser release --rm-dist
