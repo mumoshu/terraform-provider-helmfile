@@ -578,8 +578,20 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 		}
 	}
 
-	if diff != "" {
-		d.SetNew(KeyDiffOutput, diff)
+	d.SetNew(KeyDiffOutput, diff)
+
+	var previousApplyOutput string
+	if v := d.Get(KeyApplyOutput); v != nil {
+		previousApplyOutput = v.(string)
+	}
+
+	if diff == "" && previousApplyOutput != "" {
+		// When the diff is empty, we should still proceed with updating the state to empty apply_output
+		// We set apply_output to "", so that the terraform is notified that this resource needs to be updated
+		// In `updateRs` func, we check if `diff_output` is empty, and then set empty string to apply_output again,
+		// so that the `apply_output=""` in plan matches `apply_output=""` in update.
+		d.SetNew(KeyApplyOutput, "")
+	} else if diff != "" {
 		d.SetNewComputed(KeyError)
 		d.SetNewComputed(KeyApplyOutput)
 	}
@@ -628,9 +640,33 @@ func update(d *schema.ResourceData, meta interface{}, stack []string) error {
 }
 
 func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
+	diffFile, err := getDiffFile(fs)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if _, err := os.Stat(diffFile); err == nil {
+			if err := os.Remove(diffFile); err != nil {
+				log.Printf("Failed cleaning diff file: %v", err)
+			}
+		}
+	}()
+
 	log.Printf("[DEBUG] Updating release set resource...")
 
 	d.Set(KeyDirty, false)
+
+	var plannedDiffOutput string
+	if v := d.Get(KeyDiffOutput); v != nil {
+		plannedDiffOutput = v.(string)
+	}
+
+	if plannedDiffOutput == "" {
+		d.Set(KeyApplyOutput, "")
+
+		return nil
+	}
 
 	args := []string{
 		"apply",
