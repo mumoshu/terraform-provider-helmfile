@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/xid"
 	"io/ioutil"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -147,7 +148,17 @@ func resourceReleaseCreate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	return createRs(rs, d, meta, []string{"create"})
+	if err := createRs(rs, d); err != nil {
+		return err
+	}
+
+	d.MarkNewResource()
+
+	//create random uuid for the id
+	id := xid.New().String()
+	d.SetId(id)
+
+	return nil
 }
 
 func resourceReleaseRead(d *schema.ResourceData, meta interface{}) error {
@@ -155,7 +166,7 @@ func resourceReleaseRead(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	return readRs(rs, d, meta, []string{"read"})
+	return readRs(rs, d)
 }
 
 func resourceReleaseUpdate(d *schema.ResourceData, meta interface{}) error {
@@ -163,7 +174,7 @@ func resourceReleaseUpdate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	return updateRs(rs, d, meta, []string{"update"})
+	return updateRs(rs, d)
 }
 
 func resourceReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
@@ -171,7 +182,30 @@ func resourceReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	return diffRs(rs, d, meta)
+	diff, err := diffRs(rs, resourceDiffToFields(d))
+	if err != nil {
+		return err
+	}
+
+	if diff != "" {
+		d.SetNewComputed(KeyApplyOutput)
+	}
+
+	return nil
+}
+
+type resourceDiffAdapter struct {
+	*schema.ResourceDiff
+}
+
+func (d *resourceDiffAdapter) Set(key string, value interface{}) error {
+	return d.SetNew(key, value)
+}
+
+func resourceDiffToFields(d *schema.ResourceDiff) ResourceFields {
+	return &resourceDiffAdapter{
+		ResourceDiff: d,
+	}
 }
 
 func resourceReleaseDelete(d *schema.ResourceData, meta interface{}) error {
@@ -179,7 +213,13 @@ func resourceReleaseDelete(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	return deleteRs(rs, d, meta, []string{"delete"})
+	if err := deleteRs(rs, d); err != nil {
+		return err
+	}
+
+	d.SetId("")
+
+	return nil
 }
 
 type Release struct {

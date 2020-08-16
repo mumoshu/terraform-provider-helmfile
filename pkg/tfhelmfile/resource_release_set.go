@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -36,104 +37,287 @@ const KeyConcurrency = "concurrency"
 
 const HelmfileDefaultPath = "helmfile.yaml"
 
+var ReleaseSetSchema = map[string]*schema.Schema{
+	KeyValuesFiles: {
+		Type:     schema.TypeList,
+		Optional: true,
+		ForceNew: false,
+		Elem: &schema.Schema{
+			Type: schema.TypeString,
+		},
+	},
+	KeyValues: {
+		Type:     schema.TypeList,
+		Optional: true,
+		ForceNew: false,
+		Elem: &schema.Schema{
+			Type: schema.TypeString,
+		},
+	},
+	KeySelector: {
+		Type:     schema.TypeMap,
+		Optional: true,
+		ForceNew: false,
+	},
+	KeyEnvironmentVariables: {
+		Type:     schema.TypeMap,
+		Optional: true,
+		Elem:     schema.TypeString,
+	},
+	KeyWorkingDirectory: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "",
+	},
+	KeyPath: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "",
+	},
+	KeyContent: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+	},
+	KeyBin: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "helmfile",
+	},
+	KeyHelmBin: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "helm",
+	},
+	KeyEnvironment: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "helm",
+	},
+	KeyDiffOutput: {
+		Type:     schema.TypeString,
+		Computed: true,
+	},
+	KeyApplyOutput: {
+		Type:     schema.TypeString,
+		Computed: true,
+	},
+	KeyError: {
+		Type:     schema.TypeString,
+		Computed: true,
+	},
+	KeyDirty: {
+		Type:     schema.TypeBool,
+		Optional: true,
+		Default:  false,
+	},
+	KeyConcurrency: {
+		Type:     schema.TypeInt,
+		Optional: true,
+		Default:  0,
+	},
+}
+
 func resourceShellHelmfileReleaseSet() *schema.Resource {
+
 	return &schema.Resource{
 		Create:        resourceReleaseSetCreate,
 		Delete:        resourceReleaseSetDelete,
 		Read:          resourceReleaseSetRead,
 		Update:        resourceReleaseSetUpdate,
 		CustomizeDiff: resourceReleaseSetDiff,
+		Schema:        ReleaseSetSchema,
+	}
+}
+
+func resourceEmbeddingExample() *schema.Resource {
+	return &schema.Resource{
+		Create: func(data *schema.ResourceData, i interface{}) error {
+			var entries []map[string]interface{}
+
+			if d := data.Get("embedded"); d == nil {
+				return errors.New("getting field: no field named embedded found")
+			} else {
+				ifs := d.([]interface{})
+
+				for _, i := range ifs {
+					entries = append(entries, i.(map[string]interface{}))
+				}
+			}
+
+			for _, e := range entries {
+				if err := Pipeline(createRs)(&mapAdapter{fields: e}); err != nil {
+					return err
+				}
+			}
+
+			// Note: If you missed marking new resource and setting the id, it may end up unintuitive tf error like:
+			//   "... produced an unexpected new value for was present, but now absent."
+			//
+
+			data.MarkNewResource()
+
+			//create random uuid for the id
+			id := xid.New().String()
+			data.SetId(id)
+
+			data.Set("embedded", entries)
+
+			dump("create", entries)
+
+			return nil
+		},
+		Delete: func(data *schema.ResourceData, i interface{}) error {
+			var entries []map[string]interface{}
+
+			if d := data.Get("embedded"); d == nil {
+				return errors.New("getting field: no field named embedded found")
+			} else {
+				ifs := d.([]interface{})
+
+				for _, i := range ifs {
+					entries = append(entries, i.(map[string]interface{}))
+				}
+			}
+
+			for _, e := range entries {
+				if err := Pipeline(deleteRs)(&mapAdapter{fields: e}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		Read: func(data *schema.ResourceData, i interface{}) error {
+			var entries []map[string]interface{}
+
+			if d := data.Get("embedded"); d == nil {
+				return errors.New("getting field: no field named embedded found")
+			} else {
+				ifs := d.([]interface{})
+
+				for _, i := range ifs {
+					entries = append(entries, i.(map[string]interface{}))
+				}
+			}
+
+			for _, e := range entries {
+				if err := Pipeline(readRs)(&mapAdapter{fields: e}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		Update: func(data *schema.ResourceData, i interface{}) error {
+			var entries []map[string]interface{}
+
+			if d := data.Get("embedded"); d == nil {
+				return errors.New("getting field: no field named embedded found")
+			} else {
+				ifs := d.([]interface{})
+
+				for _, i := range ifs {
+					entries = append(entries, i.(map[string]interface{}))
+				}
+			}
+
+			for _, e := range entries {
+				if err := Pipeline(updateRs)(&mapAdapter{fields: e}); err != nil {
+					return err
+				}
+			}
+
+			data.Set("embedded", entries)
+
+			return nil
+		},
+		CustomizeDiff: func(resourceDiff *schema.ResourceDiff, i interface{}) error {
+			var entries []map[string]interface{}
+
+			if d := resourceDiff.Get("embedded"); d == nil {
+				return errors.New("getting field: no field named embedded found")
+			} else {
+				ifs := d.([]interface{})
+
+				for _, i := range ifs {
+					entries = append(entries, i.(map[string]interface{}))
+				}
+			}
+
+			var hasDiff bool
+
+			for _, e := range entries {
+				fs := &mapAdapter{fields: e}
+				rs, err := MustRead(fs)
+				if err != nil {
+					return err
+				}
+
+				diff, err := diffRs(rs, fs)
+				if err != nil {
+					return err
+				}
+
+				if diff != "" {
+					hasDiff = true
+				}
+			}
+
+			if hasDiff {
+				resourceDiff.SetNew("embedded", entries)
+			}
+
+			dump("diff", entries)
+
+			return nil
+		},
 		Schema: map[string]*schema.Schema{
-			KeyValuesFiles: {
+			"embedded": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: false,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
+				// Seems like we need to make the whole attributed as computed, rather than only a subset of
+				// nested fields as computed.
+				// Otherwise, we get nested computed fields like diff_output always shown as "(known after apply)",
+				// rather than the actual planned value
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: ReleaseSetSchema,
 				},
-			},
-			KeyValues: {
-				Type:     schema.TypeList,
-				Optional: true,
-				ForceNew: false,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
-			},
-			KeySelector: {
-				Type:     schema.TypeMap,
-				Optional: true,
-				ForceNew: false,
-			},
-			KeyEnvironmentVariables: {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     schema.TypeString,
-			},
-			KeyWorkingDirectory: {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: false,
-				Default:  "",
-			},
-			KeyPath: {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: false,
-				Default:  "",
-			},
-			KeyContent: {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: false,
-			},
-			KeyBin: {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: false,
-				Default:  "helmfile",
-			},
-			KeyHelmBin: {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: false,
-				Default:  "helm",
-			},
-			KeyEnvironment: {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: false,
-				Default:  "helm",
-			},
-			KeyDiffOutput: {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			KeyApplyOutput: {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			KeyError: {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			KeyDirty: {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-			},
-			KeyConcurrency: {
-				Type:     schema.TypeInt,
-				Optional: true,
-				Default:  0,
 			},
 		},
 	}
 }
 
+func dump(s string, entries []map[string]interface{}) {
+	j, _ := json.Marshal(entries)
+	if j == nil {
+		j = []byte{}
+	}
+	log.Printf("DUMP[%s]: %s", s, string(j))
+}
+
 //helpers to unwravel the recursive bits by adding a base condition
 func resourceReleaseSetCreate(d *schema.ResourceData, meta interface{}) error {
-	return create(d, meta, []string{"create"})
+	fs, err := MustRead(d)
+	if err != nil {
+		return err
+	}
+
+	if err := createRs(fs, d); err != nil {
+		return err
+	}
+
+	d.MarkNewResource()
+
+	//create random uuid for the id
+	id := xid.New().String()
+	d.SetId(id)
+
+	return nil
 }
 
 func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
@@ -169,12 +353,34 @@ type ReleaseSet struct {
 	Concurrency          int
 }
 
-type ResourceFields interface {
+type ResourceReader interface {
 	Id() string
 	Get(string) interface{}
 }
 
-func MustRead(d ResourceFields) (*ReleaseSet, error) {
+type ResourceFields interface {
+	ResourceReader
+	Set(string, interface{}) error
+}
+
+type mapAdapter struct {
+	fields map[string]interface{}
+}
+
+func (m *mapAdapter) Id() string {
+	return ""
+}
+
+func (m *mapAdapter) Get(k string) interface{} {
+	return m.fields[k]
+}
+
+func (m *mapAdapter) Set(k string, v interface{}) error {
+	m.fields[k] = v
+	return nil
+}
+
+func MustRead(d ResourceReader) (*ReleaseSet, error) {
 	f := ReleaseSet{}
 
 	// environment defaults to "helm" for helmfile_release_set but it's always nil for helmfile_release.
@@ -236,10 +442,6 @@ func MustRead(d ResourceFields) (*ReleaseSet, error) {
 	return &f, nil
 }
 
-func SetApplyOutput(d *schema.ResourceData, v string) {
-	d.Set(KeyApplyOutput, v)
-}
-
 func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error) {
 	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
 		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
@@ -295,17 +497,21 @@ func GenerateCommand(fs *ReleaseSet, additionalArgs ...string) (*exec.Cmd, error
 	return cmd, nil
 }
 
-func create(d *schema.ResourceData, meta interface{}, stack []string) error {
-	fs, err := MustRead(d)
-	if err != nil {
-		return err
+func Pipeline(
+	op func(*ReleaseSet, ResourceFields) error,
+) func(ResourceFields) error {
+	return func(fields ResourceFields) error {
+		releaseSest, err := MustRead(fields)
+		if err != nil {
+			return err
+		}
+
+		return op(releaseSest, fields)
 	}
-	return createRs(fs, d, meta, stack)
 }
 
-func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
+func createRs(fs *ReleaseSet, d ResourceFields) error {
 	log.Printf("[DEBUG] Creating release set resource...")
-	printStackTrace(stack)
 
 	args := []string{
 		"apply",
@@ -317,7 +523,6 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	if err != nil {
 		return err
 	}
-	d.MarkNewResource()
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
 	defer mutexKV.Unlock(fs.WorkingDirectory)
@@ -328,11 +533,7 @@ func createRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 		return err
 	}
 
-	//create random uuid for the id
-	id := xid.New().String()
-	d.SetId(id)
-
-	SetApplyOutput(d, st.Output)
+	d.Set(KeyApplyOutput, st.Output)
 	//SetDiffOutput(d, "")
 
 	return nil
@@ -343,7 +544,7 @@ func read(d *schema.ResourceData, meta interface{}, stack []string) error {
 	if err != nil {
 		return err
 	}
-	return readRs(fs, d, meta, stack)
+	return readRs(fs, d)
 }
 
 func diff(d *schema.ResourceDiff, meta interface{}) error {
@@ -355,14 +556,23 @@ func diff(d *schema.ResourceDiff, meta interface{}) error {
 		return err
 	}
 
-	return diffRs(fs, d, meta)
+	diff, err := diffRs(fs, resourceDiffToFields(d))
+	if err != nil {
+		return err
+	}
+
+	if diff != "" {
+		d.SetNewComputed(KeyApplyOutput)
+	}
+
+	return nil
 }
 
-func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
+func readRs(fs *ReleaseSet, d ResourceFields) error {
 	log.Printf("[DEBUG] Reading release set resource...")
 
-	// We treat diff_output as always empty, to show `helmfile diff` output as the complete the diff,
-	// rather than showing diff of diffs.
+	// We treat diff_output as always empty, to show `helmfile diff` output as a complete diff,
+	// rather than a diff of diffs.
 	//
 	// `terraform plan` shows diff on diff_output between the value after Read and CustomizeDiff.
 	// So we set it empty here, in terraform resource's Read,
@@ -374,14 +584,13 @@ func readRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []st
 	// StateFunc is called after Read and CustomizeDiff, which results in terraform showing diff of
 	// an empty string against an empty string, which is ovbiously not what we want.
 	d.Set(KeyDiffOutput, "")
+	d.Set(KeyApplyOutput, "")
 
 	// We run `helmfile build` against the state BEFORE the planned change,
 	// to make sure any error in helmfile.yaml before successful apply is shown to the user.
 	_, err := runBuild(fs)
 	if err != nil {
 		log.Printf("[DEBUG] Build error detected: %v", err)
-
-		d.Set(KeyError, err.Error())
 
 		return nil
 	}
@@ -525,13 +734,13 @@ func readDiffFile(fs *ReleaseSet) (string, error) {
 //   ...
 //   a lot of text
 //   ...
-func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
+func diffRs(fs *ReleaseSet, d ResourceFields) (string, error) {
 	log.Printf("[DEBUG] Detecting changes on release set resource...")
 
 	if fs.Path != "" {
 		_, err := os.Stat(fs.Path)
 		if err != nil {
-			return fmt.Errorf("verifying path %q: %w", fs.Path, err)
+			return "", fmt.Errorf("verifying path %q: %w", fs.Path, err)
 		}
 	}
 
@@ -546,7 +755,7 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 
 			// We return the error to stop terraform from modifying the state AND
 			// let the user knows about the error.
-			return err
+			return "", err
 		}
 
 		// We should ideally show this like `~ diff_output = <DIFF> -> (known after apply)`,
@@ -569,34 +778,33 @@ func diffRs(fs *ReleaseSet, d *schema.ResourceDiff, meta interface{}) error {
 		if state.Output != "" {
 			diff, err = removeNondeterministicLogLines(state.Output)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			if err := writeDiffFile(fs, diff); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
 
-	d.SetNew(KeyDiffOutput, diff)
+	d.Set(KeyDiffOutput, diff)
 
-	var previousApplyOutput string
-	if v := d.Get(KeyApplyOutput); v != nil {
-		previousApplyOutput = v.(string)
-	}
+	//var previousApplyOutput string
+	//if v := d.Get(KeyApplyOutput); v != nil {
+	//	previousApplyOutput = v.(string)
+	//}
+	//
+	//if diff == "" && previousApplyOutput != "" {
+	//	// When the diff is empty, we should still proceed with updating the state to empty apply_output
+	//	// We set apply_output to "", so that the terraform is notified that this resource needs to be updated
+	//	// In `updateRs` func, we check if `diff_output` is empty, and then set empty string to apply_output again,
+	//	// so that the `apply_output=""` in plan matches `apply_output=""` in update.
+	//	d.SetNew(KeyApplyOutput, "")
+	//} else if diff != "" {
+	//	d.SetNewComputed(KeyApplyOutput)
+	//}
 
-	if diff == "" && previousApplyOutput != "" {
-		// When the diff is empty, we should still proceed with updating the state to empty apply_output
-		// We set apply_output to "", so that the terraform is notified that this resource needs to be updated
-		// In `updateRs` func, we check if `diff_output` is empty, and then set empty string to apply_output again,
-		// so that the `apply_output=""` in plan matches `apply_output=""` in update.
-		d.SetNew(KeyApplyOutput, "")
-	} else if diff != "" {
-		d.SetNewComputed(KeyError)
-		d.SetNewComputed(KeyApplyOutput)
-	}
-
-	return nil
+	return diff, nil
 }
 
 // Until https://github.com/roboll/helmfile/pull/1383 and Helmfile v0.125.1,
@@ -636,10 +844,10 @@ func update(d *schema.ResourceData, meta interface{}, stack []string) error {
 	if err != nil {
 		return err
 	}
-	return updateRs(fs, d, meta, stack)
+	return updateRs(fs, d)
 }
 
-func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
+func updateRs(fs *ReleaseSet, d ResourceFields) error {
 	diffFile, err := getDiffFile(fs)
 	if err != nil {
 		return err
@@ -663,8 +871,6 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 
 	if plannedDiffOutput == "" {
-		d.Set(KeyApplyOutput, "")
-
 		return nil
 	}
 
@@ -686,14 +892,10 @@ func updateRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
-		d.Set(KeyError, err.Error())
-		d.Set(KeyApplyOutput, "")
-
 		return err
 	}
 
-	d.Set(KeyError, "")
-	SetApplyOutput(d, st.Output)
+	d.Set(KeyApplyOutput, st.Output)
 
 	return nil
 }
@@ -703,12 +905,17 @@ func delete(d *schema.ResourceData, meta interface{}, stack []string) error {
 	if err != nil {
 		return err
 	}
-	return deleteRs(fs, d, meta, stack)
+	if err := deleteRs(fs, d); err != nil {
+		return err
+	}
+
+	d.SetId("")
+
+	return nil
 }
 
-func deleteRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []string) error {
+func deleteRs(fs *ReleaseSet, d ResourceFields) error {
 	log.Printf("[DEBUG] Deleting release set resource...")
-	printStackTrace(stack)
 	cmd, err := GenerateCommand(fs, "destroy")
 	if err != nil {
 		return err
@@ -725,8 +932,6 @@ func deleteRs(fs *ReleaseSet, d *schema.ResourceData, meta interface{}, stack []
 	}
 
 	//SetDiffOutput(d, "")
-
-	d.SetId("")
 
 	return nil
 }
