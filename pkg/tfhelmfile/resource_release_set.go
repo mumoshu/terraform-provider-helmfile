@@ -257,7 +257,13 @@ func resourceEmbeddingExample() *schema.Resource {
 					return err
 				}
 
-				diff, err := diffRs(rs, fs)
+				// DryRun=true should be set if terraform-provider-helmfile is integrated into an another provider
+				// and the helmfile_release_set resource is embedded into a resource tha also declares the target K8s cluster,
+				// which means before creating the cluster the provider needs to show helmfile-diff result without K8s
+				//
+				// DryRun=false and Kubeconfig!="" should be set if the K8s cluster is already there and you have the kubeconfig to
+				// access the K8s API
+				diff, err := diffRs(rs, fs, WithDiffConfig(DiffConfig{DryRun: false, Kubeconfig: ""}))
 				if err != nil {
 					return err
 				}
@@ -636,7 +642,25 @@ func runTemplate(fs *ReleaseSet) (*State, error) {
 	return runCommand(cmd, state, false)
 }
 
-func runDiff(fs *ReleaseSet) (*State, error) {
+type DiffConfig struct {
+	DryRun     bool
+	Kubeconfig string
+}
+
+type DiffOption func(*DiffConfig)
+
+func WithDiffConfig(c DiffConfig) DiffOption {
+	return func(p *DiffConfig) {
+		*p = c
+	}
+}
+
+func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
+	var options DiffConfig
+	for _, o := range opts {
+		o(&options)
+	}
+
 	args := []string{
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
@@ -645,9 +669,17 @@ func runDiff(fs *ReleaseSet) (*State, error) {
 		"--context", "3",
 	}
 
+	if options.DryRun {
+		args = append(args, "--dry-run")
+	}
+
 	cmd, err := GenerateCommand(fs, args...)
 	if err != nil {
 		return nil, err
+	}
+
+	if options.Kubeconfig != "" {
+		cmd.Env = append(cmd.Env, "KUBECONFIG="+options.Kubeconfig)
 	}
 
 	//obtain exclusive lock
@@ -734,7 +766,7 @@ func readDiffFile(fs *ReleaseSet) (string, error) {
 //   ...
 //   a lot of text
 //   ...
-func diffRs(fs *ReleaseSet, d ResourceFields) (string, error) {
+func diffRs(fs *ReleaseSet, d ResourceFields, opts ...DiffOption) (string, error) {
 	log.Printf("[DEBUG] Detecting changes on release set resource...")
 
 	if fs.Path != "" {
@@ -746,7 +778,7 @@ func diffRs(fs *ReleaseSet, d ResourceFields) (string, error) {
 
 	diff, err := readDiffFile(fs)
 	if err != nil {
-		state, err := runDiff(fs)
+		state, err := runDiff(fs, opts...)
 		if err != nil {
 			log.Printf("[DEBUG] Diff error detected: %v", err)
 
