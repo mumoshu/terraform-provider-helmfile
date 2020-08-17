@@ -8,21 +8,19 @@ import (
 
 // Provider returns a terraform.ResourceProvider.
 func Provider() terraform.ResourceProvider {
-
-	// The actual provider
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{},
 		ResourcesMap: map[string]*schema.Resource{
 			"helmfile_release_set":       resourceShellHelmfileReleaseSet(),
-			"helmfile_release":           resourceShellHelmfileRelease(),
-			"helmfile_embedding_example": resourceEmbeddingExample(),
+			"helmfile_release":           resourceHelmfileRelease(),
+			"helmfile_embedding_example": resourceHelmfileEmbeddingExample(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	return newConfig(), nil
+	return New(), nil
 }
 
 // This is a global MutexKV for use within this plugin.

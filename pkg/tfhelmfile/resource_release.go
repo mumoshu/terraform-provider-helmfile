@@ -23,13 +23,13 @@ const KeyTimeout = "timeout"
 const KeyKubecontext = "kubecontext"
 const KeyKubeconfig = "kubeconfig"
 
-func resourceShellHelmfileRelease() *schema.Resource {
+func resourceHelmfileRelease() *schema.Resource {
 	return &schema.Resource{
-		Create:        resourceReleaseCreate,
-		Delete:        resourceReleaseDelete,
-		Read:          resourceReleaseRead,
-		Update:        resourceReleaseUpdate,
-		CustomizeDiff: resourceReleaseDiff,
+		Create:        resourceHelmfileReleaseCreate,
+		Delete:        resourceHelmfileReleaseDelete,
+		Read:          resourceHelmfileReleaseRead,
+		Update:        resourceHelmfileReleaseUpdate,
+		CustomizeDiff: resourceHelmfileReleaseDiff,
 		Schema: map[string]*schema.Schema{
 			KeyNamespace: {
 				Type:     schema.TypeString,
@@ -143,12 +143,12 @@ func resourceShellHelmfileRelease() *schema.Resource {
 }
 
 //helpers to unwravel the recursive bits by adding a base condition
-func resourceReleaseCreate(d *schema.ResourceData, meta interface{}) error {
-	rs, err := mustReadReleasetSetForRelease(d)
+func resourceHelmfileReleaseCreate(d *schema.ResourceData, meta interface{}) error {
+	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
 	}
-	if err := createRs(rs, d); err != nil {
+	if err := CreateReleaseSet(rs, d); err != nil {
 		return err
 	}
 
@@ -161,28 +161,31 @@ func resourceReleaseCreate(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func resourceReleaseRead(d *schema.ResourceData, meta interface{}) error {
-	rs, err := mustReadReleasetSetForRelease(d)
+func resourceHelmfileReleaseRead(d *schema.ResourceData, meta interface{}) error {
+	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
 	}
-	return readRs(rs, d)
+
+	return ReadReleaseSet(rs, d)
 }
 
-func resourceReleaseUpdate(d *schema.ResourceData, meta interface{}) error {
-	rs, err := mustReadReleasetSetForRelease(d)
+func resourceHelmfileReleaseUpdate(d *schema.ResourceData, meta interface{}) error {
+	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
 	}
-	return updateRs(rs, d)
+
+	return UpdateReleaseSet(rs, d)
 }
 
-func resourceReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
-	rs, err := mustReadReleasetSetForRelease(d)
+func resourceHelmfileReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
+	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
 	}
-	diff, err := diffRs(rs, resourceDiffToFields(d))
+
+	diff, err := DiffReleaseSet(rs, resourceDiffToFields(d))
 	if err != nil {
 		return err
 	}
@@ -194,26 +197,13 @@ func resourceReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
 	return nil
 }
 
-type resourceDiffAdapter struct {
-	*schema.ResourceDiff
-}
-
-func (d *resourceDiffAdapter) Set(key string, value interface{}) error {
-	return d.SetNew(key, value)
-}
-
-func resourceDiffToFields(d *schema.ResourceDiff) ResourceFields {
-	return &resourceDiffAdapter{
-		ResourceDiff: d,
-	}
-}
-
-func resourceReleaseDelete(d *schema.ResourceData, meta interface{}) error {
-	rs, err := mustReadReleasetSetForRelease(d)
+func resourceHelmfileReleaseDelete(d *schema.ResourceData, meta interface{}) error {
+	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
 	}
-	if err := deleteRs(rs, d); err != nil {
+
+	if err := DeleteReleaseSet(rs, d); err != nil {
 		return err
 	}
 
@@ -222,63 +212,9 @@ func resourceReleaseDelete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-type Release struct {
-	Name             string
-	Namespace        string
-	Chart            string
-	Version          string
-	Values           []interface{}
-	WorkingDirectory string
-	Verify           bool
-	Wait             bool
-	Force            bool
-	Atomic           bool
-	CleanupOnFail    bool
-	Timeout          int
-	Kubeconfig       string
-	Kubecontext      string
-	Bin              string
-	HelmBin          string
-	DiffOutput       string
-	ApplyOutput      string
-}
+func NewReleaseSetWithSingleRelease(d ResourceRead) (*ReleaseSet, error) {
+	r := NewRelease(d)
 
-func mustReadReleasetSetForRelease(d resource) (*ReleaseSet, error) {
-	return generateHelmfileYaml(mustReadRelease(d))
-}
-
-type resource interface {
-	Get(string) interface{}
-	Id() string
-}
-
-func mustReadRelease(d resource) *Release {
-	f := Release{}
-	f.Namespace = d.Get(KeyNamespace).(string)
-	f.Name = d.Get(KeyName).(string)
-	if f.Name == "" {
-		f.Name = d.Id()
-	}
-	f.Chart = d.Get(KeyChart).(string)
-	f.Version = d.Get(KeyVersion).(string)
-	f.Values = d.Get(KeyValues).([]interface{})
-	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
-	f.Verify = d.Get(KeyVerify).(bool)
-	f.Wait = d.Get(KeyWait).(bool)
-	f.Force = d.Get(KeyForce).(bool)
-	f.Atomic = d.Get(KeyAtomic).(bool)
-	f.CleanupOnFail = d.Get(KeyCleanupOnFail).(bool)
-	f.Timeout = d.Get(KeyTimeout).(int)
-	f.Kubeconfig = d.Get(KeyKubeconfig).(string)
-	f.Kubecontext = d.Get(KeyKubecontext).(string)
-	f.Bin = d.Get(KeyBin).(string)
-	f.HelmBin = d.Get(KeyHelmBin).(string)
-	f.DiffOutput = d.Get(KeyDiffOutput).(string)
-	f.ApplyOutput = d.Get(KeyApplyOutput).(string)
-	return &f
-}
-
-func generateHelmfileYaml(r *Release) (*ReleaseSet, error) {
 	var values []interface{}
 	for _, v := range r.Values {
 		var vv map[string]interface{}
@@ -315,6 +251,7 @@ func generateHelmfileYaml(r *Release) (*ReleaseSet, error) {
 	if err := ioutil.WriteFile(path, bs, 0755); err != nil {
 		return nil, err
 	}
+
 	rs := &ReleaseSet{
 		Bin:              r.Bin,
 		HelmBin:          r.HelmBin,
@@ -323,5 +260,6 @@ func generateHelmfileYaml(r *Release) (*ReleaseSet, error) {
 		WorkingDirectory: r.WorkingDirectory,
 		Kubeconfig:       r.Kubeconfig,
 	}
+
 	return rs, nil
 }

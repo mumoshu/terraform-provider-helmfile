@@ -1,10 +1,8 @@
 package tfhelmfile
 
-type Config struct {
+type ProviderInstance struct {
 }
 
-func newConfig() *Config {
-	return &Config{
-	}
+func New() *ProviderInstance {
+	return &ProviderInstance{}
 }
-
