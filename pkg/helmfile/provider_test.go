@@ -13,7 +13,7 @@ var testAccProvider *schema.Provider
 func init() {
 	testAccProvider = Provider().(*schema.Provider)
 	testAccProviders = map[string]terraform.ResourceProvider{
-		"helmfile_release_set": testAccProvider,
+		"helmfile": testAccProvider,
 	}
 }
 
@@ -25,4 +25,8 @@ func TestProvider(t *testing.T) {
 
 func TestProvider_impl(t *testing.T) {
 	var _ terraform.ResourceProvider = Provider()
+}
+
+func testAccPreCheck(t *testing.T) {
+
 }

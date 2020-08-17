@@ -423,7 +423,12 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 		}
 	}
 
-	d.Set(KeyDiffOutput, diff)
+	// Executing d.Set(KeyDiffOutput, "") still internally records the update to the state
+	// even if d.Get(KeyDiffOutput) is already "", which breaks our acceptance test.
+	// Guard against that here.
+	if diff != "" {
+		d.Set(KeyDiffOutput, diff)
+	}
 
 	//var previousApplyOutput string
 	//if v := d.Get(KeyApplyOutput); v != nil {
