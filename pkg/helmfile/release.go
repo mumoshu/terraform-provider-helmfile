@@ -1,4 +1,4 @@
-package tfhelmfile
+package helmfile
 
 type Release struct {
 	Name             string

@@ -1,4 +1,4 @@
-package tfhelmfile
+package helmfile
 
 import (
 	"fmt"

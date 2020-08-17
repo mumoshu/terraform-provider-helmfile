@@ -1,4 +1,4 @@
-package tfhelmfile
+package helmfile
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
