@@ -10,6 +10,11 @@ Benefits:
 
 ## Prerequisites
 
+- Helmfile
+  - v0.126.0 or greater is highly recommended due to #28
+
+## Installation
+
 **For Terraform 0.12:**
 
 Install the `terraform-provider-helmfile` binary under `.terraform/plugins/${OS}_${ARCH}`, so that the binary is at e.g. `${WORKSPACE}/.terraform/plugins/darwin_amd64/terraform-provider-helmfile`.
