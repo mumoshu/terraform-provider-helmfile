@@ -97,7 +97,10 @@ EOF
 func wantedHelmfileDiffOutputForReleaseID(id string) string {
 	releaseName := fmt.Sprintf("pi-%s", id)
 
-	return strings.ReplaceAll(`Comparing release=${RELEASE_NAME}, chart=sp/podinfo
+	return strings.ReplaceAll(`Adding repo sp https://stefanprodan.github.io/podinfo
+"sp" has been added to your repositories
+
+Comparing release=${RELEASE_NAME}, chart=sp/podinfo
 ********************
 
 	Release was not present in Helm.  Diff will show entire contents as new.
