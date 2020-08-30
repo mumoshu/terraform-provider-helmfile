@@ -3,6 +3,7 @@ module github.com/mumoshu/terraform-provider-helmfile
 go 1.13
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk v1.0.0
 	github.com/mitchellh/go-linereader v0.0.0-20190213213312-1b945b3263eb
 	github.com/rs/xid v1.2.1

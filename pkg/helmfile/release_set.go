@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
 type ReleaseSet struct {
@@ -210,10 +212,12 @@ func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	return nil
 }
 
-func runBuild(fs *ReleaseSet) (*State, error) {
+func runBuild(fs *ReleaseSet, flags ...string) (*State, error) {
 	args := []string{
 		"build",
 	}
+
+	args = append(args, flags...)
 
 	cmd, err := NewCommand(fs, args...)
 	if err != nil {
@@ -226,6 +230,39 @@ func runBuild(fs *ReleaseSet) (*State, error) {
 
 	state := NewState()
 	return runCommand(cmd, state, true)
+}
+
+func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
+	args := []string{
+		"version",
+	}
+
+	cmd, err := NewCommand(fs, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	//obtain exclusive lock
+	mutexKV.Lock(fs.WorkingDirectory)
+	defer mutexKV.Unlock(fs.WorkingDirectory)
+
+	state := NewState()
+	st, err := runCommand(cmd, state, false)
+	if err != nil {
+		return nil, err
+	}
+
+	splits := strings.Split(strings.TrimSpace(st.Output), " ")
+
+	versionPart := strings.TrimLeft(splits[len(splits)-1], "v")
+
+	v, err := semver.NewVersion(versionPart)
+
+	if err != nil {
+		logf("Failed to parse %q as semver: %v", versionPart, err)
+	}
+
+	return v, nil
 }
 
 func runTemplate(fs *ReleaseSet) (*State, error) {
@@ -295,18 +332,48 @@ func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
 }
 
 func getDiffFile(fs *ReleaseSet) (string, error) {
-	tmpl, err := runTemplate(fs)
+	helmfileVersion, err := getHelmfileVersion(fs)
 	if err != nil {
 		return "", err
 	}
 
-	determinisitcOutput, err := removeNondeterministicLogLines(tmpl.Output)
+	cons, err := semver.NewConstraint(">= 0.126.0")
 	if err != nil {
 		return "", err
+	}
+
+	var determinisiticOutput string
+
+	if helmfileVersion != nil && cons.Check(helmfileVersion) {
+		logf("Detected Helmfile version greater than 0.126.0(=%s). Using `helmfile build --embed-values` to compute the unique ID of the desired state.", helmfileVersion)
+		tmpl, err := runBuild(fs, "--embed-values")
+		if err != nil {
+			return "", err
+		}
+
+		determinisiticOutput = tmpl.Output
+	} else {
+		// `helmfile template` output is not stable and reliable when you have randomness in manifest generation,
+		// like using random id in test pods.
+		//
+		// Since helmfile v0.126.0, we can use `helmfile build --embed-values` whose output
+		// is stable as long as there's no randomness in helmfile state itself.
+		// For prior helmfile versions, we fallback to `helmfile template`, as follows.
+		//
+		// Also see https://github.com/mumoshu/terraform-provider-helmfile/issues/28 for more context.
+		tmpl, err := runTemplate(fs)
+		if err != nil {
+			return "", err
+		}
+
+		determinisiticOutput, err = removeNondeterministicLogLines(tmpl.Output)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	hash := sha256.New()
-	hash.Write([]byte(determinisitcOutput))
+	hash.Write([]byte(determinisiticOutput))
 	bs, err := json.Marshal(fs)
 	if err != nil {
 		return "", err
