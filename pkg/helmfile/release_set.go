@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -68,7 +67,7 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 
-	log.Printf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
+	logf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
 	if f.Path != "" {
 		if info, err := os.Stat(f.Path); err != nil {
@@ -82,7 +81,7 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 		}
 	}
 
-	log.Printf("Printing computed working directory for %q: %s", d.Id(), f.WorkingDirectory)
+	logf("Printing computed working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
 	if environmentVariables := d.Get(KeyEnvironmentVariables); environmentVariables != nil {
 		f.EnvironmentVariables = environmentVariables.(map[string]interface{})
@@ -118,7 +117,7 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 		path = fs.Path
 	}
 
-	log.Printf("Running helmfile %s on %+v", strings.Join(args, " "), *fs)
+	logf("Running helmfile %s on %+v", strings.Join(args, " "), *fs)
 
 	flags := []string{
 		"--environment", fs.Environment,
@@ -145,12 +144,13 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(fs.Bin, append(flags, args...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
-	log.Printf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
+
+	logf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
 	return cmd, nil
 }
 
 func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
-	log.Printf("[DEBUG] Creating release set resource...")
+	logf("[DEBUG] Creating release set resource...")
 
 	args := []string{
 		"apply",
@@ -179,7 +179,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 }
 
 func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
-	log.Printf("[DEBUG] Reading release set resource...")
+	logf("[DEBUG] Reading release set resource...")
 
 	// We treat diff_output as always empty, to show `helmfile diff` output as a complete diff,
 	// rather than a diff of diffs.
@@ -200,7 +200,7 @@ func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	// to make sure any error in helmfile.yaml before successful apply is shown to the user.
 	_, err := runBuild(fs)
 	if err != nil {
-		log.Printf("[DEBUG] Build error detected: %v", err)
+		logf("[DEBUG] Build error detected: %v", err)
 
 		return nil
 	}
@@ -327,7 +327,7 @@ func writeDiffFile(fs *ReleaseSet, content string) error {
 		return fmt.Errorf("creating directory for diff file %s: %v", diffFile, err)
 	}
 
-	log.Printf("Writing diff file to %s", diffFile)
+	logf("Writing diff file to %s", diffFile)
 
 	if err := ioutil.WriteFile(diffFile, []byte(content), 0644); err != nil {
 		return fmt.Errorf("writing diff to %s: %v", diffFile, err)
@@ -348,7 +348,7 @@ func readDiffFile(fs *ReleaseSet) (string, error) {
 	}
 
 	if len(bs) > 0 {
-		log.Printf("[DEBUG] Skipped running helmfile-diff on resource because we already have changes on diff: %+v", *fs)
+		logf("[DEBUG] Skipped running helmfile-diff on resource because we already have changes on diff: %+v", *fs)
 	}
 
 	return string(bs), nil
@@ -371,7 +371,7 @@ func readDiffFile(fs *ReleaseSet) (string, error) {
 //   a lot of text
 //   ...
 func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (string, error) {
-	log.Printf("[DEBUG] Detecting changes on release set resource...")
+	logf("[DEBUG] Detecting changes on release set resource...")
 
 	if fs.Path != "" {
 		_, err := os.Stat(fs.Path)
@@ -384,7 +384,7 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 	if err != nil {
 		state, err := runDiff(fs, opts...)
 		if err != nil {
-			log.Printf("[DEBUG] Diff error detected: %v", err)
+			logf("[DEBUG] Diff error detected: %v", err)
 
 			// Make sure errors due to the latest `helmfile diff` run is shown to the user
 			// d.SetNew(KeyError, err.Error())
@@ -489,12 +489,12 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	defer func() {
 		if _, err := os.Stat(diffFile); err == nil {
 			if err := os.Remove(diffFile); err != nil {
-				log.Printf("Failed cleaning diff file: %v", err)
+				logf("Failed cleaning diff file: %v", err)
 			}
 		}
 	}()
 
-	log.Printf("[DEBUG] Updating release set resource...")
+	logf("[DEBUG] Updating release set resource...")
 
 	d.Set(KeyDirty, false)
 
@@ -534,7 +534,7 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 }
 
 func DeleteReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
-	log.Printf("[DEBUG] Deleting release set resource...")
+	logf("[DEBUG] Deleting release set resource...")
 	cmd, err := NewCommand(fs, "destroy")
 	if err != nil {
 		return err
