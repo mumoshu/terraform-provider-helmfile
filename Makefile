@@ -6,7 +6,7 @@ PLUGIN_NAME   := terraform-provider-helmfile
 DIST_PATH     := dist/${OS}_${ARCH}
 GO_PACKAGES   := $(shell go list ./... | grep -v /vendor/)
 GO_FILES      := $(shell find . -type f -name '*.go')
-
+GO            ?= go
 
 .PHONY: all
 all: test build
@@ -16,11 +16,11 @@ test: test-all
 
 .PHONY: test-all
 test-all:
-	@TF_ACC=1 go test -v -race $(GO_PACKAGES)
+	@TF_ACC=1 $(GO) test -v -race $(GO_PACKAGES)
 
 ${DIST_PATH}/${PLUGIN_NAME}: ${GO_FILES}
 	mkdir -p $(DIST_PATH); \
-	go build -o $(DIST_PATH)/${PLUGIN_NAME}
+	$(GO) build -o $(DIST_PATH)/${PLUGIN_NAME}
 
 .PHONY: build
 build: ${DIST_PATH}/${PLUGIN_NAME}
