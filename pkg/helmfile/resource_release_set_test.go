@@ -57,6 +57,9 @@ func testAccHelmfileReleaseSetConfig_basic(randVal string) string {
 	return fmt.Sprintf(`
 resource "helmfile_release_set" "the_product" {
   content = <<EOF
+repositories:
+- name: sp
+  url: https://stefanprodan.github.io/podinfo
 
 releases:
 - name: pi-%s
