@@ -35,7 +35,7 @@ type ReleaseSet struct {
 func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	f := ReleaseSet{}
 
-	// environment defaults to "helm" for helmfile_release_set but it's always nil for helmfile_release.
+	// environment defaults to "" for helmfile_release_set but it's always nil for helmfile_release.
 	// This nil-check is required to handle the latter case. Otherwise it ends up with:
 	//   panic: interface conversion: interface {} is nil, not string
 	if env := d.Get(KeyEnvironment); env != nil {
@@ -121,11 +121,15 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 	logf("Running helmfile %s on %+v", strings.Join(args, " "), *fs)
 
 	flags := []string{
-		"--environment", fs.Environment,
 		"--file", path,
 		"--helm-binary", fs.HelmBin,
 		"--no-color",
 	}
+
+	if fs.Environment != "" {
+		flags = append(flags, "--environment", fs.Environment)
+	}
+
 	for k, v := range fs.Selector {
 		flags = append(flags, "--selector", fmt.Sprintf("%s=%s", k, v))
 	}

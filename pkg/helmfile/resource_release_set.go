@@ -84,7 +84,7 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		Type:     schema.TypeString,
 		Optional: true,
 		ForceNew: false,
-		Default:  "helm",
+		Default:  "",
 	},
 	KeyDiffOutput: {
 		Type:     schema.TypeString,
