@@ -169,7 +169,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 
 	diffFile, err := getDiffFile(fs)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting diff file: %w", err)
 	}
 
 	defer func() {
@@ -265,7 +265,7 @@ func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
 
 	cmd, err := NewCommand(fs, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating command: %w", err)
 	}
 
 	//obtain exclusive lock
@@ -275,7 +275,7 @@ func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("running command: %w", err)
 	}
 
 	splits := strings.Split(strings.TrimSpace(st.Output), " ")
@@ -354,13 +354,18 @@ func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	return runCommand(cmd, state, true)
+	diff, err := runCommand(cmd, state, true)
+	if err != nil {
+		return nil, fmt.Errorf("running command: %w", err)
+	}
+
+	return diff, nil
 }
 
 func getDiffFile(fs *ReleaseSet) (string, error) {
 	helmfileVersion, err := getHelmfileVersion(fs)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("getting helmfile version: %w", err)
 	}
 
 	cons, err := semver.NewConstraint(">= 0.126.0")
@@ -374,7 +379,7 @@ func getDiffFile(fs *ReleaseSet) (string, error) {
 		logf("Detected Helmfile version greater than 0.126.0(=%s). Using `helmfile build --embed-values` to compute the unique ID of the desired state.", helmfileVersion)
 		build, err := runBuild(fs, "--embed-values")
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("running helmfile build: %w", err)
 		}
 
 		determinisiticOutput, err = removeNondeterministicBuildLogLines(build.Output)
@@ -392,7 +397,7 @@ func getDiffFile(fs *ReleaseSet) (string, error) {
 		// Also see https://github.com/mumoshu/terraform-provider-helmfile/issues/28 for more context.
 		tmpl, err := runTemplate(fs)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("running helmfile template: %w", err)
 		}
 
 		determinisiticOutput, err = removeNondeterministicTemplateAndDiffLogLines(tmpl.Output)
@@ -482,7 +487,7 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 
 			// We return the error to stop terraform from modifying the state AND
 			// let the user knows about the error.
-			return "", err
+			return "", fmt.Errorf("running helmfile diff: %w", err)
 		}
 
 		// We should ideally show this like `~ diff_output = <DIFF> -> (known after apply)`,

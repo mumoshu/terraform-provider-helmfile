@@ -1,6 +1,7 @@
 package helmfile
 
 import (
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/rs/xid"
 	"log"
@@ -135,7 +136,7 @@ func resourceReleaseSetCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if err := CreateReleaseSet(fs, d); err != nil {
-		return err
+		return fmt.Errorf("creating release set: %w", err)
 	}
 
 	d.MarkNewResource()
@@ -153,7 +154,11 @@ func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	return ReadReleaseSet(fs, d)
+	if err:= ReadReleaseSet(fs, d); err != nil{
+		return fmt.Errorf("reading release set: %w", err)
+	}
+
+	return nil
 }
 
 func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
@@ -167,7 +172,7 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 
 	diff, err := DiffReleaseSet(fs, resourceDiffToFields(d))
 	if err != nil {
-		return err
+		return fmt.Errorf("diffing release set: %w", err)
 	}
 
 	if diff != "" {
