@@ -14,6 +14,8 @@ const KeyNamespace = "namespace"
 const KeyName = "name"
 const KeyChart = "chart"
 const KeyVersion = "version"
+const KeyHelmVersion = "helm_version"
+const KeyHelmDiffVersion = "helm_diff_version"
 const KeyVerify = "verify"
 const KeyWait = "wait"
 const KeyForce = "force"
@@ -48,6 +50,12 @@ func resourceHelmfileRelease() *schema.Resource {
 				ForceNew: false,
 			},
 			KeyVersion: {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: false,
+				Default:  "",
+			},
+			KeyHelmVersion: {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: false,

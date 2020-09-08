@@ -23,10 +23,13 @@ func NewState() *State {
 	return &State{}
 }
 
-func readEnvironmentVariables(ev map[string]interface{}) []string {
+func readEnvironmentVariables(ev map[string]interface{}, exclude string) []string {
 	var variables []string
 	if ev != nil {
 		for k, v := range ev {
+			if k == exclude {
+				continue
+			}
 			variables = append(variables, k+"="+v.(string))
 		}
 	}

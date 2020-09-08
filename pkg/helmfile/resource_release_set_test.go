@@ -33,6 +33,29 @@ func TestAccHelmfileReleaseSet_basic(t *testing.T) {
 	})
 }
 
+func TestAccHelmfileReleaseSet_binaries(t *testing.T) {
+	resourceName := "helmfile_release_set.the_product"
+	releaseID := acctest.RandString(8)
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckShellScriptDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccHelmfileReleaseSetConfig_binaries(releaseID),
+
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "environment_variables.%", "1"),
+					resource.TestCheckResourceAttr(resourceName, "selector.%", "1"),
+					resource.TestCheckResourceAttr(resourceName, "values.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "diff_output", wantedHelmfileDiffOutputForReleaseID(releaseID)),
+					resource.TestCheckResourceAttrSet(resourceName, "id"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckShellScriptDestroy(s *terraform.State) error {
 	_ = testAccProvider.Meta().(*ProviderInstance)
 
@@ -72,6 +95,48 @@ releases:
 EOF
 
   helm_binary = "helm"
+
+  working_directory = "%s"
+
+  environment = "default"
+
+  environment_variables = {
+    FOO = "foo"
+  }
+
+  values = [
+    <<EOF
+{"name": "myapp"}
+EOF
+  ]
+
+  selector = {
+    labelkey1 = "value1"
+  }
+}
+`, randVal, randVal)
+}
+
+func testAccHelmfileReleaseSetConfig_binaries(randVal string) string {
+	return fmt.Sprintf(`
+resource "helmfile_release_set" "the_product" {
+  content = <<EOF
+repositories:
+- name: sp
+  url: https://stefanprodan.github.io/podinfo
+
+releases:
+- name: pi-%s
+  chart: sp/podinfo
+  values:
+  - image:
+      tag: "123"
+  labels:
+    labelkey1: value1
+EOF
+
+  version = "0.128.0"
+  helm_version = "3.2.1"
 
   working_directory = "%s"
 

@@ -87,6 +87,24 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		ForceNew: false,
 		Default:  "helm",
 	},
+	KeyVersion: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "",
+	},
+	KeyHelmVersion: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "",
+	},
+	KeyHelmDiffVersion: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "",
+	},
 	KeyEnvironment: {
 		Type:     schema.TypeString,
 		Optional: true,

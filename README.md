@@ -228,6 +228,35 @@ mystack_apply =
 mystack_diff =
 ```
 
+## Advanced Features
+
+- Declarative biniary version management
+
+## Declarative binary version management
+
+`terraform-provider-helmfile` has a built-in package manager called [shoal](https://github.com/mumoshu/shoal).
+With that, you can specify the following `helmfile_release_set` attributes to let the provider install the executable binaries on demand:
+
+- `version` for installing `helmfile`
+- `helm_version` for installing `helm`
+- `helm_diff_version` for installing `helm-diff`
+
+`version` and `helm_version` uses the Go runtime and [go-git](https://github.com/go-git/go-git) so it should work without any dependency.
+
+`helm_diff_version` requires `helm plugin install` to be runnable. The plugin installation process can vary depending on the plugin and its `plugin.yaml`.
+
+With the below example, the provider installs `helmfile` v0.128.0, `helm` 3.2.1, and `helm-diff` 3.1.3, so that you don't need to install them beforehand.
+This should be handy when you're trying to use this provider on Terraform Cloud, whose runtime environment is [not available for customization by the user](https://www.terraform.io/docs/cloud/run/run-environment.html).    
+
+```hcl-terraform
+helmfile_release_set "mystack" {
+  version = "0.128.0"
+  helm_version = "3.2.1"
+  helm_diff_version = "v3.1.3"
+
+  // snip
+```
+
 ## Develop
 If you wish to build this yourself, follow the instructions:
 

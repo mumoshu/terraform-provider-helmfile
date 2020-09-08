@@ -28,8 +28,18 @@ type ReleaseSet struct {
 	Selector             map[string]interface{}
 	EnvironmentVariables map[string]interface{}
 	WorkingDirectory     string
-	Kubeconfig           string
-	Concurrency          int
+
+	// Kubeconfig is the file path to kubeconfig which is set to the KUBECONFIG environment variable on running helmfile
+	Kubeconfig string
+
+	Concurrency int
+
+	// Version is the version number or the semver version range for the helmfile version to use
+	Version string
+
+	// HelmVersion is the version number or the semver version range for the helm version to use
+	HelmVersion     string
+	HelmDiffVersion string
 }
 
 func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
@@ -69,6 +79,10 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 
 	f.Kubeconfig = d.Get(KeyKubeconfig).(string)
+
+	f.Version = d.Get(KeyVersion).(string)
+	f.HelmVersion = d.Get(KeyHelmVersion).(string)
+	f.HelmDiffVersion = d.Get(KeyHelmDiffVersion).(string)
 
 	logf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
@@ -124,8 +138,16 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 
 	flags := []string{
 		"--file", path,
-		"--helm-binary", fs.HelmBin,
 		"--no-color",
+	}
+
+	helmfileBin, helmBin, err := prepareBinaries(fs)
+	if err != nil {
+		return nil, err
+	}
+
+	if *helmBin != "" {
+		flags = append(flags, "--helm-binary", *helmBin)
 	}
 
 	if fs.Environment != "" {
@@ -148,14 +170,14 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 		}
 		flags = append(flags, "--state-values-file", tmpf)
 	}
-	cmd := exec.Command(fs.Bin, append(flags, args...)...)
+	cmd := exec.Command(*helmfileBin, append(flags, args...)...)
 	cmd.Dir = fs.WorkingDirectory
-	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
+	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables, "KUBECONFIG")...)
 
 	if kubeconfig, err := getKubeconfig(fs); err != nil {
 		return nil, fmt.Errorf("creating command: %w", err)
 	} else if *kubeconfig != "" {
-		cmd.Env = append(os.Environ(), "KUBECONFIG=", *kubeconfig)
+		cmd.Env = append(cmd.Env, "KUBECONFIG=", *kubeconfig)
 	}
 
 	logf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
@@ -214,7 +236,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	state := NewState()
 	st, err := runCommand(cmd, state, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("running helmfile-apply: %w", err)
 	}
 
 	d.Set(KeyApplyOutput, st.Output)
