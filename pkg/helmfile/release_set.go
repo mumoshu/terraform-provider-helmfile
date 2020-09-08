@@ -152,16 +152,33 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
 
-	if kubeconfig := fs.Kubeconfig; kubeconfig != "" {
-		if fs.EnvironmentVariables["KUBECONFIG"] != "" {
-			return nil, fmt.Errorf("validating release set: helmfile_release_set.environment_variables.KUBECONFIG cannot be set with helmfile_release_set.kubeconfig")
-		}
-
-		cmd.Env = append(os.Environ(), "KUBECONFIG=", kubeconfig)
+	if kubeconfig, err := getKubeconfig(fs); err != nil {
+		return nil, fmt.Errorf("creating command: %w", err)
+	} else if *kubeconfig != "" {
+		cmd.Env = append(os.Environ(), "KUBECONFIG=", *kubeconfig)
 	}
 
 	logf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
 	return cmd, nil
+}
+
+func getKubeconfig(fs *ReleaseSet) (*string, error) {
+	att := fs.Kubeconfig
+
+	var env string
+
+	if v, ok := fs.EnvironmentVariables["KUBECONFIG"]; ok {
+		env = v.(string)
+	}
+
+	if att != "" {
+		if env != "" {
+			return nil, fmt.Errorf("validating release set: helmfile_release_set.environment_variables.KUBECONFIG cannot be set with helmfile_release_set.kubeconfig")
+		}
+		return &att, nil
+	}
+
+	return &env, nil
 }
 
 func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {

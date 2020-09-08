@@ -154,7 +154,7 @@ func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	if err:= ReadReleaseSet(fs, d); err != nil{
+	if err := ReadReleaseSet(fs, d); err != nil {
 		return fmt.Errorf("reading release set: %w", err)
 	}
 
@@ -170,9 +170,23 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 		return err
 	}
 
+	kubeconfig, err := getKubeconfig(fs)
+	if err != nil {
+		return fmt.Errorf("getting kubeconfig: %w", err)
+	}
+
 	diff, err := DiffReleaseSet(fs, resourceDiffToFields(d))
 	if err != nil {
-		return fmt.Errorf("diffing release set: %w", err)
+		// helmfile_release_set.kubeconfig or helmfile_releaset_set.environment_variables.KUBECONFIG can be empty
+		// on `plan` if the value depends on another terraform resource.
+		// This `plan` includes the implicit/automatic plan that is conducted before `terraform destroy`.
+		// So, on `plan` helmfile diff can fail due to the missing KUBECONFIG. If we did return an error for that,
+		// `terraform plan` or `terraform destroy` on helmfile_release_set will never succeed if the dependant resource is missing.
+		if *kubeconfig != "" {
+			return fmt.Errorf("diffing release set: %w", err)
+		}
+		log.Printf("Ignoring helmfile-diff error on plan because it may be due to that terraform's behaviour that "+
+			"helmfile_releaset_set.kubeconfig that depends on another missing resource can be empty: %v", err)
 	}
 
 	if diff != "" {
