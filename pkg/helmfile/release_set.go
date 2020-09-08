@@ -68,6 +68,8 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 
+	f.Kubeconfig = d.Get(KeyKubeconfig).(string)
+
 	logf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
 	if f.Path != "" {
@@ -149,6 +151,14 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(fs.Bin, append(flags, args...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables)...)
+
+	if kubeconfig := fs.Kubeconfig; kubeconfig != "" {
+		if fs.EnvironmentVariables["KUBECONFIG"] != "" {
+			return nil, fmt.Errorf("validating release set: helmfile_release_set.environment_variables.KUBECONFIG cannot be set with helmfile_release_set.kubeconfig")
+		}
+
+		cmd.Env = append(os.Environ(), "KUBECONFIG=", kubeconfig)
+	}
 
 	logf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
 	return cmd, nil

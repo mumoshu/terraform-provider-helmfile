@@ -57,6 +57,12 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		ForceNew: false,
 		Default:  "",
 	},
+	KeyKubeconfig: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+		Default:  "",
+	},
 	KeyPath: {
 		Type:     schema.TypeString,
 		Optional: true,
