@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/rs/xid"
 	"log"
+	"os"
 )
 
 const KeyValuesFiles = "values_files"
@@ -201,7 +202,15 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 		// So, on `plan` helmfile diff can fail due to the missing KUBECONFIG. If we did return an error for that,
 		// `terraform plan` or `terraform destroy` on helmfile_release_set will never succeed if the dependant resource is missing.
 		if *kubeconfig != "" {
-			return fmt.Errorf("diffing release set: %w", err)
+			// kubeconfig can be also empty when the kubeconfig path is static but not generated when terraform triggers
+			// diff on this release_set.
+			// We detect that situation by looking for the file.
+			// If the kubeconfig_path is not empty AND the file is in-existent, we may safely say that
+			// the path is static but the file is not yet generated.
+			// In code below, `info == nil` or `os.IsNotExist(err)` means that the file is in-existent.
+			if info, err := os.Stat(*kubeconfig); info != nil {
+				return fmt.Errorf("diffing release set: %w", err)
+			}
 		}
 		log.Printf("Ignoring helmfile-diff error on plan because it may be due to that terraform's behaviour that "+
 			"helmfile_releaset_set.kubeconfig that depends on another missing resource can be empty: %v", err)
