@@ -28,6 +28,7 @@ type ReleaseSet struct {
 	Selector             map[string]interface{}
 	EnvironmentVariables map[string]interface{}
 	WorkingDirectory     string
+	ReleasesValues       map[string]interface{}
 
 	// Kubeconfig is the file path to kubeconfig which is set to the KUBECONFIG environment variable on running helmfile
 	Kubeconfig string
@@ -75,6 +76,7 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	}
 
 	f.Values = d.Get(KeyValues).([]interface{})
+	f.ReleasesValues = d.Get(KeyReleasesValues).(map[string]interface{})
 	f.Bin = d.Get(KeyBin).(string)
 	f.WorkingDirectory = d.Get(KeyWorkingDirectory).(string)
 
@@ -169,6 +171,9 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 			return nil, err
 		}
 		flags = append(flags, "--state-values-file", tmpf)
+	}
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 	cmd := exec.Command(*helmfileBin, append(flags, args...)...)
 	cmd.Dir = fs.WorkingDirectory

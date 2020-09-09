@@ -23,6 +23,7 @@ const KeyError = "error"
 const KeyApplyOutput = "apply_output"
 const KeyDirty = "dirty"
 const KeyConcurrency = "concurrency"
+const KeyReleasesValues = "releases_values"
 
 const HelmfileDefaultPath = "helmfile.yaml"
 
@@ -133,6 +134,11 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		Type:     schema.TypeInt,
 		Optional: true,
 		Default:  0,
+	},
+	KeyReleasesValues: {
+		Type:     schema.TypeMap,
+		Optional: true,
+		ForceNew: false,
 	},
 }
 
