@@ -172,9 +172,6 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 		}
 		flags = append(flags, "--state-values-file", tmpf)
 	}
-	for k, v := range fs.ReleasesValues {
-		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
-	}
 	cmd := exec.Command(*helmfileBin, append(flags, args...)...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables, "KUBECONFIG")...)
@@ -228,6 +225,10 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--suppress-secrets",
+	}
+
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
 	cmd, err := NewCommand(fs, args...)
@@ -378,6 +379,10 @@ func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
 		"--detailed-exitcode",
 		"--suppress-secrets",
 		"--context", "3",
+	}
+
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
 	if options.DryRun {
