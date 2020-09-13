@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/mitchellh/go-linereader"
@@ -78,7 +79,7 @@ func runCommand(cmd *exec.Cmd, state *State, diffMode bool) (*State, error) {
 	}
 
 	out := output.String()
-	log.Printf("[DEBUG] helmfile command output: \"%s\"", out)
+	log.Printf("[DEBUG] Output of `%s` was:\n%s", strings.Join(cmd.Args, " "), out)
 	var exitStatus int
 	if runErr != nil {
 		switch ee := runErr.(type) {
