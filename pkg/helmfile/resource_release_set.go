@@ -201,7 +201,11 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 		return fmt.Errorf("getting kubeconfig: %w", err)
 	}
 
-	diff, err := DiffReleaseSet(fs, resourceDiffToFields(d))
+	provider := meta.(*ProviderInstance)
+
+	diff, err := DiffReleaseSet(fs, resourceDiffToFields(d), WithDiffConfig(DiffConfig{
+		MaxDiffOutputLen: provider.MaxDiffOutputLen,
+	}))
 	if err != nil {
 		// helmfile_release_set.kubeconfig or helmfile_releaset_set.environment_variables.KUBECONFIG can be empty
 		// on `plan` if the value depends on another terraform resource.

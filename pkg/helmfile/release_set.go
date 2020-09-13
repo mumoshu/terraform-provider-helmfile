@@ -357,8 +357,9 @@ func runTemplate(fs *ReleaseSet) (*State, error) {
 }
 
 type DiffConfig struct {
-	DryRun     bool
-	Kubeconfig string
+	DryRun           bool
+	Kubeconfig       string
+	MaxDiffOutputLen int
 }
 
 type DiffOption func(*DiffConfig)
@@ -369,12 +370,7 @@ func WithDiffConfig(c DiffConfig) DiffOption {
 	}
 }
 
-func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
-	var options DiffConfig
-	for _, o := range opts {
-		o(&options)
-	}
-
+func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 	args := []string{
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
@@ -383,7 +379,7 @@ func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
 		"--context", "3",
 	}
 
-	if options.DryRun {
+	if conf.DryRun {
 		args = append(args, "--dry-run")
 	}
 
@@ -392,8 +388,8 @@ func runDiff(fs *ReleaseSet, opts ...DiffOption) (*State, error) {
 		return nil, err
 	}
 
-	if options.Kubeconfig != "" {
-		cmd.Env = append(cmd.Env, "KUBECONFIG="+options.Kubeconfig)
+	if conf.Kubeconfig != "" {
+		cmd.Env = append(cmd.Env, "KUBECONFIG="+conf.Kubeconfig)
 	}
 
 	//obtain exclusive lock
@@ -516,6 +512,11 @@ func readDiffFile(fs *ReleaseSet) (string, error) {
 func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (string, error) {
 	logf("[DEBUG] Detecting changes on release set resource...")
 
+	var diffConf DiffConfig
+	for _, o := range opts {
+		o(&diffConf)
+	}
+
 	if fs.Path != "" {
 		_, err := os.Stat(fs.Path)
 		if err != nil {
@@ -525,7 +526,7 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 
 	diff, err := readDiffFile(fs)
 	if err != nil {
-		state, err := runDiff(fs, opts...)
+		state, err := runDiff(fs, diffConf)
 		if err != nil {
 			logf("[DEBUG] Diff error detected: %v", err)
 
@@ -570,6 +571,29 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 	// even if d.Get(KeyDiffOutput) is already "", which breaks our acceptance test.
 	// Guard against that here.
 	if diff != "" {
+		maxDiffOutputLen := diffConf.MaxDiffOutputLen
+
+		if maxDiffOutputLen == 0 {
+			const DefaultMaxDiffOutputLen = 4096
+
+			maxDiffOutputLen = DefaultMaxDiffOutputLen
+		}
+
+		notice := "...\n" +
+			"helmfile-diff output was too long, and therefore snipped.\n" +
+			fmt.Sprintf("Set max_diff_output_len in the provider config, which is currently %d, to a larger value to see more.", maxDiffOutputLen)
+		noticeLen := len(notice)
+
+		if len(diff) > maxDiffOutputLen {
+			i := maxDiffOutputLen - noticeLen - 1
+			for ; diff[i] != '\n'; i-- {
+
+			}
+			if i < 0 {
+				i = 0
+			}
+			diff = diff[:i+1] + "\n" + notice
+		}
 		d.Set(KeyDiffOutput, diff)
 	}
 
