@@ -6,6 +6,7 @@ import (
 	"github.com/rs/xid"
 	"log"
 	"os"
+	"strings"
 )
 
 const KeyValuesFiles = "values_files"
@@ -217,6 +218,8 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 			if info, err := os.Stat(*kubeconfig); info != nil {
 				return fmt.Errorf("diffing release set: %w", err)
 			}
+		} else if !strings.Contains(err.Error(), "Kubernetes cluster unreachable") {
+			return fmt.Errorf("diffing release set: %w", err)
 		}
 		log.Printf("Ignoring helmfile-diff error on plan because it may be due to that terraform's behaviour that "+
 			"helmfile_releaset_set.kubeconfig that depends on another missing resource can be empty: %v", err)
