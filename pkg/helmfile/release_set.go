@@ -170,9 +170,6 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 		}
 		flags = append(flags, "--state-values-file", tmpf)
 	}
-	for k, v := range fs.ReleasesValues {
-		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
-	}
 
 	flags = append(flags, args...)
 
@@ -231,6 +228,10 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--suppress-secrets",
+	}
+
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
 	cmd, err := NewCommand(fs, args...)
@@ -377,6 +378,10 @@ func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 		"--detailed-exitcode",
 		"--suppress-secrets",
 		"--context", "3",
+	}
+
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
 	if conf.DryRun {
@@ -706,6 +711,10 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"apply",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--suppress-secrets",
+	}
+
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
 	cmd, err := NewCommand(fs, args...)
