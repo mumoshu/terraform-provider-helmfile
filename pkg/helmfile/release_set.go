@@ -686,6 +686,10 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"--suppress-secrets",
 	}
 
+	for k, v := range fs.ReleasesValues {
+		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
+	}
+
 	cmd, err := NewCommand(fs, args...)
 	if err != nil {
 		return err
