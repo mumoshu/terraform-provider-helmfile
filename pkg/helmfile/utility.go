@@ -79,7 +79,7 @@ func runCommand(cmd *exec.Cmd, state *State, diffMode bool) (*State, error) {
 	}
 
 	out := output.String()
-	log.Printf("[DEBUG] Output of `%s %s` was:\n%s", strings.Join(cmd.Args, " "), out)
+	log.Printf("[DEBUG] Output of `%s` was:\n%s", strings.Join(cmd.Args, " "), out)
 	var exitStatus int
 	if runErr != nil {
 		switch ee := runErr.(type) {
