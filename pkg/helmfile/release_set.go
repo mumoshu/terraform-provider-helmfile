@@ -136,8 +136,6 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 		path = fs.Path
 	}
 
-	logf("Running helmfile %s on %+v", strings.Join(args, " "), *fs)
-
 	flags := []string{
 		"--file", path,
 		"--no-color",
@@ -175,7 +173,12 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 	for k, v := range fs.ReleasesValues {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
-	cmd := exec.Command(*helmfileBin, append(flags, args...)...)
+
+	flags = append(flags, args...)
+
+	logf("Running helmfile %s on %+v", strings.Join(flags, " "), *fs)
+
+	cmd := exec.Command(*helmfileBin, flags...)
 	cmd.Dir = fs.WorkingDirectory
 	cmd.Env = append(os.Environ(), readEnvironmentVariables(fs.EnvironmentVariables, "KUBECONFIG")...)
 
