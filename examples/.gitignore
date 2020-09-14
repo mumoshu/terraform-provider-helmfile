@@ -1,0 +1,7 @@
+/testout
+/helmfile-*.yaml
+/*.log
+/USE
+/temp.values-*.yaml
+/*.tf
+/terraform.tfstate*

@@ -1,8 +1,12 @@
+repositories:
+- name: sp
+  url: https://stefanprodan.github.io/podinfo
+
 releases:
 - name: {{ .Values.name }}-{{ requiredEnv "FOO" }}
   chart: sp/podinfo
   values:
-  - image:
-      tag: foobar2abcd
+  - values.yaml
   labels:
     labelkey1: value1
+    labelkey2: value2

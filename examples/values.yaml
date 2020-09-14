@@ -1,0 +1,6 @@
+image:
+  tag: foobar2356
+
+foo:
+  bar: BAR
+  baz: BAZ

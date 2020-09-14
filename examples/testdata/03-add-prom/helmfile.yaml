@@ -1,0 +1,16 @@
+repositories:
+- name: sp
+  url: https://stefanprodan.github.io/podinfo
+
+releases:
+- name: {{ .Values.name }}-{{ requiredEnv "FOO" }}
+  chart: sp/podinfo
+  values:
+  - values.yaml
+  labels:
+    labelkey1: value1
+    labelkey2: value2
+
+- name: prom-operator
+  chart: stable/prometheus-operator
+  disableValidation: true
