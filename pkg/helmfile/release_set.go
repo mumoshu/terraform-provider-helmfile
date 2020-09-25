@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -757,4 +758,23 @@ func DeleteReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	//SetDiffOutput(d, "")
 
 	return nil
+}
+
+func ImportReleaseSet(d *schema.ResourceData) (*schema.ResourceData, error) {
+	helmfileYamlPath := d.Id()
+
+	content, err := ioutil.ReadFile(helmfileYamlPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", helmfileYamlPath, err)
+	}
+
+	d.SetId(newId())
+
+	d.Set(KeyConcurrency, 0)
+	d.Set(KeyBin, "helmfile")
+	d.Set(KeyHelmBin, "helm")
+	d.Set(KeyDirty, false)
+	d.Set(KeyContent, string(content))
+
+	return d, nil
 }

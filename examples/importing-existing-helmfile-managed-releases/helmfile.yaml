@@ -1,0 +1,7 @@
+repositories:
+- name: sp
+  url: https://stefanprodan.github.io/podinfo
+
+releases:
+- name: podinfo
+  chart: sp/podinfo

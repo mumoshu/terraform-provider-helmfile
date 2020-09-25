@@ -230,7 +230,8 @@ mystack_diff =
 
 ## Advanced Features
 
-- Declarative biniary version management
+- [Declarative binary version management](#declarative-binary-version-management)
+- [Importing existing Helmfile project](/examples/importing-existing-helmfile-managed-releases)
 
 ## Declarative binary version management
 

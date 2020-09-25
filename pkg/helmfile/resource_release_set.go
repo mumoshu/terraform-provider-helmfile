@@ -150,7 +150,10 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 		Read:          resourceReleaseSetRead,
 		Update:        resourceReleaseSetUpdate,
 		CustomizeDiff: resourceReleaseSetDiff,
-		Schema:        ReleaseSetSchema,
+		Importer: &schema.ResourceImporter{
+			State: resourceReleaseSetImport,
+		},
+		Schema: ReleaseSetSchema,
 	}
 }
 
@@ -167,11 +170,16 @@ func resourceReleaseSetCreate(d *schema.ResourceData, meta interface{}) error {
 
 	d.MarkNewResource()
 
-	//create random uuid for the id
-	id := xid.New().String()
-	d.SetId(id)
+	d.SetId(newId())
 
 	return nil
+}
+
+func newId() string {
+	//create random uuid for the id
+	id := xid.New().String()
+
+	return id
 }
 
 func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
@@ -258,4 +266,13 @@ func resourceReleaseSetDelete(d *schema.ResourceData, meta interface{}) error {
 	d.SetId("")
 
 	return nil
+}
+
+func resourceReleaseSetImport(data *schema.ResourceData, i interface{}) ([]*schema.ResourceData, error) {
+	data, err := ImportReleaseSet(data)
+	if err != nil {
+		return nil, fmt.Errorf("importing release set: %w", err)
+	}
+
+	return []*schema.ResourceData{data}, nil
 }
