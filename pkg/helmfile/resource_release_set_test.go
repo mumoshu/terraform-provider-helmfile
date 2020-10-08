@@ -138,6 +138,8 @@ EOF
   version = "0.128.0"
   helm_version = "3.2.1"
 
+  kubeconfig_path = pathexpand("~/.kube/config")
+
   working_directory = "%s"
 
   environment = "default"
