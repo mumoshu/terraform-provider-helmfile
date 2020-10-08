@@ -96,6 +96,8 @@ EOF
 
   helm_binary = "helm"
 
+  kubeconfig = pathexpand("~/.kube/config")
+
   working_directory = "%s"
 
   environment = "default"
