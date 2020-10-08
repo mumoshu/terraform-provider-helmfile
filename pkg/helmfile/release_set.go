@@ -113,7 +113,7 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	return &f, nil
 }
 
-func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
+func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
 		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
 	}
@@ -184,6 +184,8 @@ func NewCommand(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
 		return nil, fmt.Errorf("creating command: %w", err)
 	} else if *kubeconfig != "" {
 		cmd.Env = append(cmd.Env, "KUBECONFIG=", *kubeconfig)
+	} else {
+		return nil, fmt.Errorf("[BUG] NewCommandWithKubeconfig must not be called with empty kubeconfig path. args = %s", strings.Join(args, " "))
 	}
 
 	logf("[DEBUG] Generated command: wd = %s, args = %s", fs.WorkingDirectory, strings.Join(cmd.Args, " "))
@@ -235,7 +237,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
-	cmd, err := NewCommand(fs, args...)
+	cmd, err := NewCommandWithKubeconfig(fs, args...)
 	if err != nil {
 		return err
 	}
@@ -273,6 +275,12 @@ func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	d.Set(KeyDiffOutput, "")
 	d.Set(KeyApplyOutput, "")
 
+	if fs.Kubeconfig == "" {
+		logf("Skipping helmfile-build due to that kubeconfig is empty, which means that this operation has been called on a helmfile resource that depends on in-existent resource")
+
+		return nil
+	}
+
 	// We run `helmfile build` against the state BEFORE the planned change,
 	// to make sure any error in helmfile.yaml before successful apply is shown to the user.
 	_, err := runBuild(fs)
@@ -294,7 +302,7 @@ func runBuild(fs *ReleaseSet, flags ...string) (*State, error) {
 
 	args = append(args, flags...)
 
-	cmd, err := NewCommand(fs, args...)
+	cmd, err := NewCommandWithKubeconfig(fs, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +320,7 @@ func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
 		"version",
 	}
 
-	cmd, err := NewCommand(fs, args...)
+	cmd, err := NewCommandWithKubeconfig(fs, args...)
 	if err != nil {
 		return nil, fmt.Errorf("creating command: %w", err)
 	}
@@ -345,7 +353,7 @@ func runTemplate(fs *ReleaseSet) (*State, error) {
 		"template",
 	}
 
-	cmd, err := NewCommand(fs, args...)
+	cmd, err := NewCommandWithKubeconfig(fs, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +397,7 @@ func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 		args = append(args, "--dry-run")
 	}
 
-	cmd, err := NewCommand(fs, args...)
+	cmd, err := NewCommandWithKubeconfig(fs, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -718,7 +726,7 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
 
-	cmd, err := NewCommand(fs, args...)
+	cmd, err := NewCommandWithKubeconfig(fs, args...)
 	if err != nil {
 		return err
 	}
@@ -740,7 +748,7 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 
 func DeleteReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	logf("[DEBUG] Deleting release set resource...")
-	cmd, err := NewCommand(fs, "destroy")
+	cmd, err := NewCommandWithKubeconfig(fs, "destroy")
 	if err != nil {
 		return err
 	}
