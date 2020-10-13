@@ -137,7 +137,7 @@ releases:
     labelkey1: value1
 EOF
 
-  version = "0.128.0"
+  version = "0.128.1"
   helm_version = "3.2.1"
 
   kubeconfig = pathexpand("~/.kube/config")
