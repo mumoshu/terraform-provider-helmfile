@@ -87,6 +87,7 @@ repositories:
 releases:
 - name: pi-%s
   chart: sp/podinfo
+  version: 4.0.6
   values:
   - image:
       tag: "123"
@@ -130,6 +131,7 @@ repositories:
 releases:
 - name: pi-%s
   chart: sp/podinfo
+  version: 4.0.6
   values:
   - image:
       tag: "123"
