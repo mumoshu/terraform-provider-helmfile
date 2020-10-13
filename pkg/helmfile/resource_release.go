@@ -107,9 +107,8 @@ func resourceHelmfileRelease() *schema.Resource {
 			},
 			KeyKubeconfig: {
 				Type:     schema.TypeString,
-				Optional: true,
+				Required: true,
 				ForceNew: false,
-				Default:  "",
 			},
 			KeyKubecontext: {
 				Type:     schema.TypeString,

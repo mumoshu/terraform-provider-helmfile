@@ -16,7 +16,7 @@ jobs:
     - name: Setup helmfile
       uses: mamezou-tech/setup-helmfile@v0.4.0
       with:
-        helmfile-version: "v0.126.0"
+        helmfile-version: "v0.128.1"
 
     - name: Create k8s Kind Cluster
       uses: helm/kind-action@v1.0.0

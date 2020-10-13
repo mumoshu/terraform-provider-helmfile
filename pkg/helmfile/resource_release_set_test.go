@@ -87,6 +87,7 @@ repositories:
 releases:
 - name: pi-%s
   chart: sp/podinfo
+  version: 4.0.6
   values:
   - image:
       tag: "123"
@@ -95,6 +96,8 @@ releases:
 EOF
 
   helm_binary = "helm"
+
+  kubeconfig = pathexpand("~/.kube/config")
 
   working_directory = "%s"
 
@@ -128,6 +131,7 @@ repositories:
 releases:
 - name: pi-%s
   chart: sp/podinfo
+  version: 4.0.6
   values:
   - image:
       tag: "123"
@@ -135,8 +139,10 @@ releases:
     labelkey1: value1
 EOF
 
-  version = "0.128.0"
+  version = "0.128.1"
   helm_version = "3.2.1"
+
+  kubeconfig = pathexpand("~/.kube/config")
 
   working_directory = "%s"
 

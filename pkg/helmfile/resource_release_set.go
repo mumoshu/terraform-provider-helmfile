@@ -63,9 +63,8 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 	},
 	KeyKubeconfig: {
 		Type:     schema.TypeString,
-		Optional: true,
+		Required: true,
 		ForceNew: false,
-		Default:  "",
 	},
 	KeyPath: {
 		Type:     schema.TypeString,
@@ -207,6 +206,12 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 	kubeconfig, err := getKubeconfig(fs)
 	if err != nil {
 		return fmt.Errorf("getting kubeconfig: %w", err)
+	}
+
+	if fs.Kubeconfig == "" {
+		logf("Skipping helmfile-diff due to that kubeconfig is empty, which means that this operation has been called on a helmfile resource that depends on in-existent resource")
+
+		return nil
 	}
 
 	provider := meta.(*ProviderInstance)
