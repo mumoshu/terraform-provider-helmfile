@@ -182,8 +182,8 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 
 	if kubeconfig, err := getKubeconfig(fs); err != nil {
 		return nil, fmt.Errorf("creating command: %w", err)
-	} else if *kubeconfig != "" {
-		cmd.Env = append(cmd.Env, "KUBECONFIG=", *kubeconfig)
+	} else if kc := *kubeconfig; kc != "" {
+		cmd.Env = append(cmd.Env, "KUBECONFIG="+kc)
 	} else {
 		return nil, fmt.Errorf("[BUG] NewCommandWithKubeconfig must not be called with empty kubeconfig path. args = %s", strings.Join(args, " "))
 	}
