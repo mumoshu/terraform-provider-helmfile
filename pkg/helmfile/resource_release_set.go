@@ -2,11 +2,12 @@ package helmfile
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/rs/xid"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/rs/xid"
 )
 
 const KeyValuesFiles = "values_files"
@@ -231,8 +232,8 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 			// We detect that situation by looking for the file.
 			// If the kubeconfig_path is not empty AND the file is in-existent, we may safely say that
 			// the path is static but the file is not yet generated.
-			// In code below, `info == nil` or `os.IsNotExist(err)` means that the file is in-existent.
-			if info, err := os.Stat(*kubeconfig); info != nil {
+			// In code below, `info == nil` or `os.IsNotExist(err)` means that the file is not in-existent.
+			if info, err := os.Stat(*kubeconfig); info == nil {
 				return fmt.Errorf("diffing release set: %w", err)
 			}
 		} else if !strings.Contains(err.Error(), "Kubernetes cluster unreachable") {
