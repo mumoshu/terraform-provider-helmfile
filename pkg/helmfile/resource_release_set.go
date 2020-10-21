@@ -6,6 +6,7 @@ import (
 	"github.com/rs/xid"
 	"log"
 	"os"
+	"runtime/debug"
 	"strings"
 )
 
@@ -142,7 +143,7 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 	},
 }
 
-func resourceShellHelmfileReleaseSet() *schema.Resource {
+func resourceHelmfileReleaseSet() *schema.Resource {
 	return &schema.Resource{
 		Create:        resourceReleaseSetCreate,
 		Delete:        resourceReleaseSetDelete,
@@ -157,7 +158,13 @@ func resourceShellHelmfileReleaseSet() *schema.Resource {
 }
 
 //helpers to unwravel the recursive bits by adding a base condition
-func resourceReleaseSetCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceReleaseSetCreate(d *schema.ResourceData, meta interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	fs, err := NewReleaseSet(d)
 	if err != nil {
 		return err
@@ -181,7 +188,13 @@ func newId() string {
 	return id
 }
 
-func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
+func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	fs, err := NewReleaseSet(d)
 	if err != nil {
 		return err
@@ -194,7 +207,13 @@ func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
+func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	old, new := d.GetChange(KeyWorkingDirectory)
 	log.Printf("Getting old and new working directories for id %q: old = %v, new = %v, got = %v", d.Id(), old, new, d.Get(KeyWorkingDirectory))
 
@@ -249,7 +268,13 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) error {
 	return nil
 }
 
-func resourceReleaseSetUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceReleaseSetUpdate(d *schema.ResourceData, meta interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	fs, err := NewReleaseSet(d)
 	if err != nil {
 		return err
@@ -258,7 +283,13 @@ func resourceReleaseSetUpdate(d *schema.ResourceData, meta interface{}) error {
 	return UpdateReleaseSet(fs, d)
 }
 
-func resourceReleaseSetDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceReleaseSetDelete(d *schema.ResourceData, meta interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	fs, err := NewReleaseSet(d)
 	if err != nil {
 		return err

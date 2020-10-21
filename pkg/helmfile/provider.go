@@ -22,7 +22,7 @@ func Provider() terraform.ResourceProvider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"helmfile_release_set":       resourceShellHelmfileReleaseSet(),
+			"helmfile_release_set":       resourceHelmfileReleaseSet(),
 			"helmfile_release":           resourceHelmfileRelease(),
 			"helmfile_embedding_example": resourceHelmfileEmbeddingExample(),
 		},

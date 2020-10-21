@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rs/xid"
+	"golang.org/x/xerrors"
 	"io/ioutil"
+	"runtime/debug"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
@@ -150,7 +152,13 @@ func resourceHelmfileRelease() *schema.Resource {
 }
 
 //helpers to unwravel the recursive bits by adding a base condition
-func resourceHelmfileReleaseCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceHelmfileReleaseCreate(d *schema.ResourceData, _ interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
@@ -168,7 +176,13 @@ func resourceHelmfileReleaseCreate(d *schema.ResourceData, meta interface{}) err
 	return nil
 }
 
-func resourceHelmfileReleaseRead(d *schema.ResourceData, meta interface{}) error {
+func resourceHelmfileReleaseRead(d *schema.ResourceData, _ interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
@@ -177,7 +191,13 @@ func resourceHelmfileReleaseRead(d *schema.ResourceData, meta interface{}) error
 	return ReadReleaseSet(rs, d)
 }
 
-func resourceHelmfileReleaseUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceHelmfileReleaseUpdate(d *schema.ResourceData, _ interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
@@ -186,7 +206,13 @@ func resourceHelmfileReleaseUpdate(d *schema.ResourceData, meta interface{}) err
 	return UpdateReleaseSet(rs, d)
 }
 
-func resourceHelmfileReleaseDiff(d *schema.ResourceDiff, meta interface{}) error {
+func resourceHelmfileReleaseDiff(d *schema.ResourceDiff, _ interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
@@ -198,13 +224,21 @@ func resourceHelmfileReleaseDiff(d *schema.ResourceDiff, meta interface{}) error
 	}
 
 	if diff != "" {
-		d.SetNewComputed(KeyApplyOutput)
+		if err := d.SetNewComputed(KeyApplyOutput); err != nil {
+			return xerrors.Errorf("setting new computed %s: %w", KeyApplyOutput, err)
+		}
 	}
 
 	return nil
 }
 
-func resourceHelmfileReleaseDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceHelmfileReleaseDelete(d *schema.ResourceData, _ interface{}) (finalErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			finalErr = fmt.Errorf("unhandled error: %v\n%s", err, debug.Stack())
+		}
+	}()
+
 	rs, err := NewReleaseSetWithSingleRelease(d)
 	if err != nil {
 		return err
