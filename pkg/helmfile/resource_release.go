@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/xid"
-	"golang.org/x/xerrors"
 	"io/ioutil"
 	"runtime/debug"
+
+	"github.com/rs/xid"
+	"golang.org/x/xerrors"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
@@ -108,9 +109,10 @@ func resourceHelmfileRelease() *schema.Resource {
 				Default:  0,
 			},
 			KeyKubeconfig: {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: false,
+				Type:      schema.TypeString,
+				Required:  true,
+				ForceNew:  false,
+				Sensitive: true,
 			},
 			KeyKubecontext: {
 				Type:     schema.TypeString,
