@@ -2,12 +2,13 @@ package helmfile
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/rs/xid"
 	"log"
 	"os"
 	"runtime/debug"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/rs/xid"
 )
 
 const KeyValuesFiles = "values_files"
@@ -63,9 +64,10 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		Default:  "",
 	},
 	KeyKubeconfig: {
-		Type:     schema.TypeString,
-		Required: true,
-		ForceNew: false,
+		Type:      schema.TypeString,
+		Required:  true,
+		ForceNew:  false,
+		Sensitive: true,
 	},
 	KeyPath: {
 		Type:     schema.TypeString,
