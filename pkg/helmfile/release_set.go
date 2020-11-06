@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"golang.org/x/xerrors"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -193,6 +194,8 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 }
 
 func getKubeconfig(fs *ReleaseSet) (*string, error) {
+	var rel string
+
 	att := fs.Kubeconfig
 
 	var env string
@@ -205,10 +208,18 @@ func getKubeconfig(fs *ReleaseSet) (*string, error) {
 		if env != "" {
 			return nil, fmt.Errorf("validating release set: helmfile_release_set.environment_variables.KUBECONFIG cannot be set with helmfile_release_set.kubeconfig")
 		}
-		return &att, nil
+
+		rel = att
+	} else {
+		rel = env
 	}
 
-	return &env, nil
+	abs, err := filepath.Abs(rel)
+	if err != nil {
+		return nil, xerrors.Errorf("determining absolute path for kubeconfig path %s: %w", rel, err)
+	}
+
+	return &abs, nil
 }
 
 func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
