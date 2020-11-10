@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/rs/xid"
+	"golang.org/x/xerrors"
 	"log"
 	"os"
 	"runtime/debug"
@@ -26,6 +27,7 @@ const KeyApplyOutput = "apply_output"
 const KeyDirty = "dirty"
 const KeyConcurrency = "concurrency"
 const KeyReleasesValues = "releases_values"
+const KeySkipDiffOnMissingFiles = "skip_diff_on_missing_files"
 
 const HelmfileDefaultPath = "helmfile.yaml"
 
@@ -39,6 +41,14 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		},
 	},
 	KeyValues: {
+		Type:     schema.TypeList,
+		Optional: true,
+		ForceNew: false,
+		Elem: &schema.Schema{
+			Type: schema.TypeString,
+		},
+	},
+	KeySkipDiffOnMissingFiles: {
 		Type:     schema.TypeList,
 		Optional: true,
 		ForceNew: false,
@@ -229,6 +239,14 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) (finalErr 
 
 	if fs.Kubeconfig == "" {
 		logf("Skipping helmfile-diff due to that kubeconfig is empty, which means that this operation has been called on a helmfile resource that depends on in-existent resource")
+
+		return nil
+	}
+
+	if v, err := shouldDiff(fs); err != nil {
+		return xerrors.Errorf("checking skip_diff_on_missing_files to determine if the provider needs to run helmfile-diff: %w", err)
+	} else if !v {
+		logf("Skipping helmfile-diff due to that one or more files listed in skip_diff_on_missing_files were missing")
 
 		return nil
 	}
