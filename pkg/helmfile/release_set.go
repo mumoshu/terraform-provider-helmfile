@@ -43,6 +43,14 @@ type ReleaseSet struct {
 	// HelmVersion is the version number or the semver version range for the helm version to use
 	HelmVersion     string
 	HelmDiffVersion string
+
+	// SkipDiffOnMissingFiles is the list of local files. Any file contained in the list but missing on the file system
+	// result in the provider to skip running `helmfile-diff`. Use with Terraform's `depends_on`, so that
+	// you can let another dependent Terraform resource to created required files like kubeconfig or Helmfile values
+	// files to be used by the helmfile_release_set.
+	//
+	// See https://github.com/mumoshu/terraform-provider-helmfile/issues/38 for more information on expected use-cases.
+	SkipDiffOnMissingFiles []string
 }
 
 func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
@@ -75,6 +83,16 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 
 	if valuesFiles := d.Get(KeyValuesFiles); valuesFiles != nil {
 		f.ValuesFiles = valuesFiles.([]interface{})
+	}
+
+	if vs := d.Get(KeySkipDiffOnMissingFiles); vs != nil {
+		var ss []string
+
+		for _, v := range vs.([]interface{}) {
+			ss = append(ss, v.(string))
+		}
+
+		f.SkipDiffOnMissingFiles = ss
 	}
 
 	f.Values = d.Get(KeyValues).([]interface{})
