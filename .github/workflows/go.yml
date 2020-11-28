@@ -14,7 +14,7 @@ jobs:
       id: go
 
     - name: Setup helmfile
-      uses: mamezou-tech/setup-helmfile@v0.4.0
+      uses: mamezou-tech/setup-helmfile@v0.6.0
       with:
         helmfile-version: "v0.128.1"
 
