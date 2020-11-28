@@ -14,6 +14,7 @@ import (
 const KeyValuesFiles = "values_files"
 const KeyValues = "values"
 const KeySelector = "selector"
+const KeySelectors = "selectors"
 const KeyEnvironmentVariables = "environment_variables"
 const KeyWorkingDirectory = "working_directory"
 const KeyPath = "path"
@@ -60,6 +61,14 @@ var ReleaseSetSchema = map[string]*schema.Schema{
 		Type:     schema.TypeMap,
 		Optional: true,
 		ForceNew: false,
+	},
+	KeySelectors: {
+		Type:     schema.TypeList,
+		Optional: true,
+		ForceNew: false,
+		Elem: &schema.Schema{
+			Type: schema.TypeString,
+		},
 	},
 	KeyEnvironmentVariables: {
 		Type:     schema.TypeMap,

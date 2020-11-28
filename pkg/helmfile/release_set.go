@@ -18,16 +18,22 @@ import (
 )
 
 type ReleaseSet struct {
-	Bin                  string
-	Values               []interface{}
-	ValuesFiles          []interface{}
-	HelmBin              string
-	Path                 string
-	Content              string
-	DiffOutput           string
-	ApplyOutput          string
-	Environment          string
-	Selector             map[string]interface{}
+	Bin         string
+	Values      []interface{}
+	ValuesFiles []interface{}
+	HelmBin     string
+	Path        string
+	Content     string
+	DiffOutput  string
+	ApplyOutput string
+	Environment string
+
+	// Selector is a helmfile label selector that is a AND list of label key-value pairs
+	Selector map[string]interface{}
+
+	// Selectors is a OR list of selectors
+	Selectors []interface{}
+
 	EnvironmentVariables map[string]interface{}
 	WorkingDirectory     string
 	ReleasesValues       map[string]interface{}
@@ -79,6 +85,12 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 
 	if selector := d.Get(KeySelector); selector != nil {
 		f.Selector = selector.(map[string]interface{})
+	}
+
+	if selectors := d.Get(KeySelectors); selectors != nil {
+		for _, s := range selectors.([]interface{}) {
+			f.Selectors = append(f.Selectors, s)
+		}
 	}
 
 	if valuesFiles := d.Get(KeyValuesFiles); valuesFiles != nil {
@@ -177,6 +189,11 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 	for k, v := range fs.Selector {
 		flags = append(flags, "--selector", fmt.Sprintf("%s=%s", k, v))
 	}
+
+	for _, selector := range fs.Selectors {
+		flags = append(flags, "--selector", fmt.Sprintf("%s", selector))
+	}
+
 	for _, f := range fs.ValuesFiles {
 		flags = append(flags, "--state-values-file", fmt.Sprintf("%v", f))
 	}
