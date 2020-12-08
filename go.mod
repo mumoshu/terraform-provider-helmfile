@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk v1.0.0
 	github.com/mitchellh/go-linereader v0.0.0-20190213213312-1b945b3263eb
-	github.com/mumoshu/shoal v0.2.13
+	github.com/mumoshu/shoal v0.2.14
 	github.com/pkg/profile v1.5.0
 	github.com/rs/xid v1.2.1
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
