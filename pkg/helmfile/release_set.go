@@ -279,6 +279,13 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"--suppress-secrets",
 	}
 
+	additionalArgs, err := getAdditionalHelmfileApplyFlags(fs)
+	if err != nil {
+		return err
+	}
+
+	args = append(args, additionalArgs...)
+
 	for k, v := range fs.ReleasesValues {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
 	}
@@ -489,20 +496,42 @@ func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 	return diff, nil
 }
 
+func getAdditionalHelmfileApplyFlags(fs *ReleaseSet) ([]string, error) {
+	helmfileVersion, err := getHelmfileVersion(fs)
+	if err != nil {
+		return nil, fmt.Errorf("getting helmfile version: %w", err)
+	}
+
+	// See https://github.com/roboll/helmfile/pull/1618 for --skip-diff-on-install
+
+	gt136, err := semver.NewConstraint(">= 0.136.0")
+	if err != nil {
+		return nil, err
+	}
+
+	var args []string
+
+	if helmfileVersion != nil && gt136.Check(helmfileVersion) {
+		args = append(args, "--skip-diff-on-install")
+	}
+
+	return args, nil
+}
+
 func getDiffFile(fs *ReleaseSet) (string, error) {
 	helmfileVersion, err := getHelmfileVersion(fs)
 	if err != nil {
 		return "", fmt.Errorf("getting helmfile version: %w", err)
 	}
 
-	cons, err := semver.NewConstraint(">= 0.126.0")
+	gte126, err := semver.NewConstraint(">= 0.126.0")
 	if err != nil {
 		return "", err
 	}
 
 	var determinisiticOutput string
 
-	if helmfileVersion != nil && cons.Check(helmfileVersion) {
+	if helmfileVersion != nil && gte126.Check(helmfileVersion) {
 		logf("Detected Helmfile version greater than 0.126.0(=%s). Using `helmfile build --embed-values` to compute the unique ID of the desired state.", helmfileVersion)
 		build, err := runBuild(fs, "--embed-values")
 		if err != nil {
@@ -791,6 +820,13 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"--concurrency", strconv.Itoa(fs.Concurrency),
 		"--suppress-secrets",
 	}
+
+	additionalArgs, err := getAdditionalHelmfileApplyFlags(fs)
+	if err != nil {
+		return err
+	}
+
+	args = append(args, additionalArgs...)
 
 	for k, v := range fs.ReleasesValues {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", k, v))
