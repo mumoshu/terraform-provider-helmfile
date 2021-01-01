@@ -448,6 +448,30 @@ func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 		return nil, err
 	}
 
+	// Use the stable directory for storing temporary charts and values files
+	// so that helmfile-diff output becomes stables and terraform plan doesn't break.
+	// See https://github.com/roboll/helmfile/pull/1622
+
+	hash, err := HashObject(fs)
+	if err != nil {
+		return nil, xerrors.Errorf("computing hash of object: %w", err)
+	}
+
+	tempDir := filepath.Join(".terraform", "helmfile", fmt.Sprintf("temp-%s", hash))
+
+	if info, _ := os.Stat(tempDir); info != nil {
+		if err := os.RemoveAll(tempDir); err != nil {
+			return nil, xerrors.Errorf("removing stable temp directory %s: %w", tempDir, err)
+		}
+	}
+
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return nil, xerrors.Errorf("creating temp directory for helmfile and chartify %s: %w", tempDir, err)
+	}
+
+	cmd.Env = append(cmd.Env, "HELMFILE_TEMPDIR="+tempDir)
+	cmd.Env = append(cmd.Env, "CHARTIFY_TEMPDIR="+tempDir)
+
 	if conf.Kubeconfig != "" {
 		cmd.Env = append(cmd.Env, "KUBECONFIG="+conf.Kubeconfig)
 	}
