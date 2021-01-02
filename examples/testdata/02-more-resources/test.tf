@@ -6,7 +6,7 @@ resource "helmfile_embedding_example" "emb1" {
 
     helm_binary = "helm3"
 
-
+    version = "0.135.0"
 
     working_directory = path.module
 
@@ -15,6 +15,8 @@ resource "helmfile_embedding_example" "emb1" {
     environment_variables = {
       FOO = "emb1"
     }
+
+    kubeconfig = "kubeconfig"
 
     values = [
       <<EOF
@@ -33,7 +35,7 @@ resource "helmfile_release_set" "mystack" {
 
   helm_binary = "helm3"
 
-
+  version = "0.135.0"
 
   working_directory = path.module
 
@@ -42,6 +44,8 @@ resource "helmfile_release_set" "mystack" {
   environment_variables = {
     FOO = "foo"
   }
+
+  kubeconfig = "kubeconfig"
 
   values = [
     <<EOF
@@ -59,20 +63,22 @@ resource "helmfile_release_set" "mystack2" {
 
 releases:
 - name: myapp2
-  chart: sp/podinfo
+  chart: flagger/podinfo
   values:
   - image:
       tag: "123"
   labels:
     labelkey1: value1
 - name: myapp3
-  chart: sp/podinfo
+  chart: flagger/podinfo
   values:
   - image:
      tag: "2345"
 EOF
 
   helm_binary = "helm3"
+
+  version = "0.135.0"
 
   //	working_directory = path.module
   working_directory = "mystack2"
@@ -83,6 +89,8 @@ EOF
     FOO = "foo"
   }
 
+  kubeconfig = "kubeconfig"
+
   values = [
     <<EOF
 {"name": "myapp"}
@@ -92,6 +100,10 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  depends_on = [
+    helmfile_release_set.mystack,
+  ]
 }
 
 output "mystack_diff" {
@@ -109,28 +121,34 @@ output "mystack2_diff" {
 output "mystack2_apply" {
   value = helmfile_release_set.mystack2.apply_output
 }
-
-resource "helmfile_release" "myapp" {
-  name = "myapp"
-  namespace = "default"
-  chart = "sp/podinfo"
-  helm_binary = "helm3"
-
-  //	working_directory = path.module
-  //	working_directory = "myapp"
-  values = [
-    <<EOF
-{ "image": {"tag": "3.1455" } }
-EOF
-  ]
-}
-
-
-output "myapp_diff" {
-  value = helmfile_release.myapp.diff_output
-}
-
-output "myapp_apply" {
-  value = helmfile_release.myapp.apply_output
-}
-
+//
+//resource "helmfile_release" "myapp" {
+//  name = "myapp"
+//  namespace = "default"
+//  chart = "flagger/podinfo"
+//  helm_binary = "helm3"
+//  version = "0.135.0"
+//  kubeconfig = "kubeconfig"
+//
+//  //	working_directory = path.module
+//  //	working_directory = "myapp"
+//  values = [
+//    <<EOF
+//{ "image": {"tag": "3.1455" } }
+//EOF
+//  ]
+//
+//  depends_on = [
+//    helmfile_release_set.mystack2,
+//  ]
+//}
+//
+//
+//output "myapp_diff" {
+//  value = helmfile_release.myapp.diff_output
+//}
+//
+//output "myapp_apply" {
+//  value = helmfile_release.myapp.apply_output
+//}
+//

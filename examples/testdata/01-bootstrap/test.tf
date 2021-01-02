@@ -5,6 +5,8 @@ resource "helmfile_release_set" "mystack" {
 
   helm_binary = "helm3"
 
+  version = "0.135.0"
+
   working_directory = path.module
 
   environment = "default"
@@ -12,6 +14,8 @@ resource "helmfile_release_set" "mystack" {
   environment_variables = {
     FOO = "foo"
   }
+
+  kubeconfig = "kubeconfig"
 
   values = [
     <<EOF

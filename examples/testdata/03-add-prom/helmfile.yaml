@@ -1,10 +1,10 @@
 repositories:
-- name: sp
-  url: https://stefanprodan.github.io/podinfo
+- name: flagger
+  url: https://flagger.app
 
 releases:
 - name: {{ .Values.name }}-{{ requiredEnv "FOO" }}
-  chart: sp/podinfo
+  chart: flagger/podinfo
   values:
   - values.yaml
   labels:
