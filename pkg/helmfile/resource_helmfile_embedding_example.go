@@ -60,7 +60,7 @@ func resourceHelmfileEmbeddingExampleCreate(data *schema.ResourceData, i interfa
 			return err
 		}
 
-		if err := CreateReleaseSet(rs, fs); err != nil {
+		if err := CreateReleaseSet(newContext(fs), rs, fs); err != nil {
 			return err
 		}
 	}
@@ -96,7 +96,7 @@ func resourceHelmfileEmbeddingExampleDelete(data *schema.ResourceData, i interfa
 			return err
 		}
 
-		if err := DeleteReleaseSet(rs, fs); err != nil {
+		if err := DeleteReleaseSet(newContext(fs), rs, fs); err != nil {
 			return err
 		}
 	}
@@ -117,7 +117,7 @@ func resourceHelmfileEmbeddingExampleRead(data *schema.ResourceData, i interface
 			return err
 		}
 
-		if err := ReadReleaseSet(rs, fs); err != nil {
+		if err := ReadReleaseSet(newContext(fs), rs, fs); err != nil {
 			return err
 		}
 	}
@@ -138,7 +138,7 @@ func resourceHelmfileEmbeddingExampleUpdate(data *schema.ResourceData, i interfa
 			return err
 		}
 
-		if err := UpdateReleaseSet(rs, fs); err != nil {
+		if err := UpdateReleaseSet(newContext(fs), rs, fs); err != nil {
 			return err
 		}
 	}
@@ -170,7 +170,7 @@ func resourceHelmfileEmbeddingExampleCustomizeDiff(resourceDiff *schema.Resource
 		//
 		// DryRun=false and Kubeconfig!="" should be set if the K8s cluster is already there and you have the kubeconfig to
 		// access the K8s API
-		diff, err := DiffReleaseSet(rs, fs, WithDiffConfig(DiffConfig{DryRun: false, Kubeconfig: ""}))
+		diff, err := DiffReleaseSet(newContext(fs), rs, fs, WithDiffConfig(DiffConfig{DryRun: false, Kubeconfig: ""}))
 		if err != nil {
 			return err
 		}

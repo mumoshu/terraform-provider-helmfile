@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/mumoshu/terraform-provider-eksctl/pkg/sdk"
 	"golang.org/x/xerrors"
 	"io/ioutil"
 	"os"
@@ -257,10 +258,10 @@ func getKubeconfig(fs *ReleaseSet) (*string, error) {
 	return &abs, nil
 }
 
-func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
+func CreateReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) error {
 	logf("[DEBUG] Creating release set resource...")
 
-	diffFile, err := getDiffFile(fs)
+	diffFile, err := getDiffFile(ctx, fs)
 	if err != nil {
 		return fmt.Errorf("getting diff file: %w", err)
 	}
@@ -279,7 +280,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"--suppress-secrets",
 	}
 
-	additionalArgs, err := getAdditionalHelmfileApplyFlags(fs)
+	additionalArgs, err := getAdditionalHelmfileApplyFlags(newContext(d), fs)
 	if err != nil {
 		return err
 	}
@@ -299,7 +300,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	st, err := runCommand(cmd, state, false)
+	st, err := runCommand(ctx, cmd, state, false)
 	if err != nil {
 		return fmt.Errorf("running helmfile-apply: %w", err)
 	}
@@ -310,7 +311,7 @@ func CreateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	return nil
 }
 
-func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
+func ReadReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) error {
 	logf("[DEBUG] Reading release set resource...")
 
 	// We treat diff_output as always empty, to show `helmfile diff` output as a complete diff,
@@ -336,7 +337,7 @@ func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 
 	// We run `helmfile build` against the state BEFORE the planned change,
 	// to make sure any error in helmfile.yaml before successful apply is shown to the user.
-	_, err := runBuild(fs)
+	_, err := runBuild(ctx, fs)
 	if err != nil {
 		logf("[DEBUG] Build error detected: %v", err)
 
@@ -348,7 +349,7 @@ func ReadReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	return nil
 }
 
-func runBuild(fs *ReleaseSet, flags ...string) (*State, error) {
+func runBuild(ctx *sdk.Context, fs *ReleaseSet, flags ...string) (*State, error) {
 	args := []string{
 		"build",
 	}
@@ -365,10 +366,10 @@ func runBuild(fs *ReleaseSet, flags ...string) (*State, error) {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	return runCommand(cmd, state, false)
+	return runCommand(ctx, cmd, state, false)
 }
 
-func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
+func getHelmfileVersion(ctx *sdk.Context, fs *ReleaseSet) (*semver.Version, error) {
 	args := []string{
 		"version",
 	}
@@ -383,7 +384,7 @@ func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	st, err := runCommand(cmd, state, false)
+	st, err := runCommand(ctx, cmd, state, false)
 	if err != nil {
 		return nil, fmt.Errorf("running command: %w", err)
 	}
@@ -401,7 +402,7 @@ func getHelmfileVersion(fs *ReleaseSet) (*semver.Version, error) {
 	return v, nil
 }
 
-func runTemplate(fs *ReleaseSet) (*State, error) {
+func runTemplate(ctx *sdk.Context, fs *ReleaseSet) (*State, error) {
 	args := []string{
 		"template",
 	}
@@ -416,7 +417,7 @@ func runTemplate(fs *ReleaseSet) (*State, error) {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	return runCommand(cmd, state, false)
+	return runCommand(ctx, cmd, state, false)
 }
 
 type DiffConfig struct {
@@ -433,7 +434,7 @@ func WithDiffConfig(c DiffConfig) DiffOption {
 	}
 }
 
-func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
+func runDiff(ctx *sdk.Context, fs *ReleaseSet, conf DiffConfig) (*State, error) {
 	args := []string{
 		"diff",
 		"--concurrency", strconv.Itoa(fs.Concurrency),
@@ -488,7 +489,7 @@ func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	diff, err := runCommand(cmd, state, true)
+	diff, err := runCommand(ctx, cmd, state, true)
 	if err != nil {
 		return nil, fmt.Errorf("running command: %w", err)
 	}
@@ -496,8 +497,8 @@ func runDiff(fs *ReleaseSet, conf DiffConfig) (*State, error) {
 	return diff, nil
 }
 
-func getAdditionalHelmfileApplyFlags(fs *ReleaseSet) ([]string, error) {
-	helmfileVersion, err := getHelmfileVersion(fs)
+func getAdditionalHelmfileApplyFlags(ctx *sdk.Context, fs *ReleaseSet) ([]string, error) {
+	helmfileVersion, err := getHelmfileVersion(ctx, fs)
 	if err != nil {
 		return nil, fmt.Errorf("getting helmfile version: %w", err)
 	}
@@ -518,8 +519,8 @@ func getAdditionalHelmfileApplyFlags(fs *ReleaseSet) ([]string, error) {
 	return args, nil
 }
 
-func getDiffFile(fs *ReleaseSet) (string, error) {
-	helmfileVersion, err := getHelmfileVersion(fs)
+func getDiffFile(ctx *sdk.Context, fs *ReleaseSet) (string, error) {
+	helmfileVersion, err := getHelmfileVersion(ctx, fs)
 	if err != nil {
 		return "", fmt.Errorf("getting helmfile version: %w", err)
 	}
@@ -533,7 +534,7 @@ func getDiffFile(fs *ReleaseSet) (string, error) {
 
 	if helmfileVersion != nil && gte126.Check(helmfileVersion) {
 		logf("Detected Helmfile version greater than 0.126.0(=%s). Using `helmfile build --embed-values` to compute the unique ID of the desired state.", helmfileVersion)
-		build, err := runBuild(fs, "--embed-values")
+		build, err := runBuild(ctx, fs, "--embed-values")
 		if err != nil {
 			return "", fmt.Errorf("running helmfile build: %w", err)
 		}
@@ -551,7 +552,7 @@ func getDiffFile(fs *ReleaseSet) (string, error) {
 		// For prior helmfile versions, we fallback to `helmfile template`, as follows.
 		//
 		// Also see https://github.com/mumoshu/terraform-provider-helmfile/issues/28 for more context.
-		tmpl, err := runTemplate(fs)
+		tmpl, err := runTemplate(ctx, fs)
 		if err != nil {
 			return "", fmt.Errorf("running helmfile template: %w", err)
 		}
@@ -569,8 +570,8 @@ func getDiffFile(fs *ReleaseSet) (string, error) {
 	return diffFile, nil
 }
 
-func writeDiffFile(fs *ReleaseSet, content string) error {
-	diffFile, err := getDiffFile(fs)
+func writeDiffFile(ctx *sdk.Context, fs *ReleaseSet, content string) error {
+	diffFile, err := getDiffFile(ctx, fs)
 	if err != nil {
 		return err
 	}
@@ -588,8 +589,8 @@ func writeDiffFile(fs *ReleaseSet, content string) error {
 	return nil
 }
 
-func readDiffFile(fs *ReleaseSet) (string, error) {
-	diffFile, err := getDiffFile(fs)
+func readDiffFile(ctx *sdk.Context, fs *ReleaseSet) (string, error) {
+	diffFile, err := getDiffFile(ctx, fs)
 	if err != nil {
 		return "", err
 	}
@@ -622,7 +623,7 @@ func readDiffFile(fs *ReleaseSet) (string, error) {
 //   ...
 //   a lot of text
 //   ...
-func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (string, error) {
+func DiffReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (string, error) {
 	logf("[DEBUG] Detecting changes on release set resource...")
 
 	var diffConf DiffConfig
@@ -637,9 +638,9 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 		}
 	}
 
-	diff, err := readDiffFile(fs)
+	diff, err := readDiffFile(ctx, fs)
 	if err != nil {
-		state, err := runDiff(fs, diffConf)
+		state, err := runDiff(ctx, fs, diffConf)
 		if err != nil {
 			logf("[DEBUG] Diff error detected: %v", err)
 
@@ -674,7 +675,7 @@ func DiffReleaseSet(fs *ReleaseSet, d ResourceReadWrite, opts ...DiffOption) (st
 				return "", err
 			}
 
-			if err := writeDiffFile(fs, diff); err != nil {
+			if err := writeDiffFile(ctx, fs, diff); err != nil {
 				return "", err
 			}
 		}
@@ -788,8 +789,8 @@ func removeNondeterministicBuildLogLines(s string) (string, error) {
 	return buf.String(), nil
 }
 
-func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
-	diffFile, err := getDiffFile(fs)
+func UpdateReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) error {
+	diffFile, err := getDiffFile(ctx, fs)
 	if err != nil {
 		return err
 	}
@@ -821,7 +822,7 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 		"--suppress-secrets",
 	}
 
-	additionalArgs, err := getAdditionalHelmfileApplyFlags(fs)
+	additionalArgs, err := getAdditionalHelmfileApplyFlags(ctx, fs)
 	if err != nil {
 		return err
 	}
@@ -842,7 +843,7 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	st, err := runCommand(cmd, state, false)
+	st, err := runCommand(ctx, cmd, state, false)
 	if err != nil {
 		return err
 	}
@@ -852,7 +853,7 @@ func UpdateReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	return nil
 }
 
-func DeleteReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
+func DeleteReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) error {
 	logf("[DEBUG] Deleting release set resource...")
 	cmd, err := NewCommandWithKubeconfig(fs, "destroy")
 	if err != nil {
@@ -864,7 +865,7 @@ func DeleteReleaseSet(fs *ReleaseSet, d ResourceReadWrite) error {
 	defer mutexKV.Unlock(fs.WorkingDirectory)
 
 	state := NewState()
-	_, err = runCommand(cmd, state, false)
+	_, err = runCommand(ctx, cmd, state, false)
 	if err != nil {
 		return err
 	}

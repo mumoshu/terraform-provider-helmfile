@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/mumoshu/terraform-provider-eksctl/pkg/sdk/tfsdk"
 	"github.com/rs/xid"
 	"golang.org/x/xerrors"
 	"io/ioutil"
@@ -35,6 +36,17 @@ func resourceHelmfileRelease() *schema.Resource {
 		Update:        resourceHelmfileReleaseUpdate,
 		CustomizeDiff: resourceHelmfileReleaseDiff,
 		Schema: map[string]*schema.Schema{
+			KeyAWSRegion: {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: false,
+			},
+			KeyAWSProfile: {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: false,
+			},
+			KeyAWSAssumeRole: tfsdk.SchemaAssumeRole(),
 			KeyNamespace: {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -163,7 +175,8 @@ func resourceHelmfileReleaseCreate(d *schema.ResourceData, _ interface{}) (final
 	if err != nil {
 		return err
 	}
-	if err := CreateReleaseSet(rs, d); err != nil {
+
+	if err := CreateReleaseSet(newContext(d), rs, d); err != nil {
 		return err
 	}
 
@@ -188,7 +201,7 @@ func resourceHelmfileReleaseRead(d *schema.ResourceData, _ interface{}) (finalEr
 		return err
 	}
 
-	return ReadReleaseSet(rs, d)
+	return ReadReleaseSet(newContext(d), rs, d)
 }
 
 func resourceHelmfileReleaseUpdate(d *schema.ResourceData, _ interface{}) (finalErr error) {
@@ -203,7 +216,7 @@ func resourceHelmfileReleaseUpdate(d *schema.ResourceData, _ interface{}) (final
 		return err
 	}
 
-	return UpdateReleaseSet(rs, d)
+	return UpdateReleaseSet(newContext(d), rs, d)
 }
 
 func resourceHelmfileReleaseDiff(d *schema.ResourceDiff, _ interface{}) (finalErr error) {
@@ -218,7 +231,7 @@ func resourceHelmfileReleaseDiff(d *schema.ResourceDiff, _ interface{}) (finalEr
 		return err
 	}
 
-	diff, err := DiffReleaseSet(rs, resourceDiffToFields(d))
+	diff, err := DiffReleaseSet(newContext(d), rs, resourceDiffToFields(d))
 	if err != nil {
 		return err
 	}
@@ -244,7 +257,7 @@ func resourceHelmfileReleaseDelete(d *schema.ResourceData, _ interface{}) (final
 		return err
 	}
 
-	if err := DeleteReleaseSet(rs, d); err != nil {
+	if err := DeleteReleaseSet(newContext(d), rs, d); err != nil {
 		return err
 	}
 

@@ -3,6 +3,7 @@ package helmfile
 import (
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/mumoshu/terraform-provider-eksctl/pkg/sdk/tfsdk"
 	"github.com/rs/xid"
 	"golang.org/x/xerrors"
 	"log"
@@ -33,6 +34,17 @@ const KeySkipDiffOnMissingFiles = "skip_diff_on_missing_files"
 const HelmfileDefaultPath = "helmfile.yaml"
 
 var ReleaseSetSchema = map[string]*schema.Schema{
+	KeyAWSRegion: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+	},
+	KeyAWSProfile: {
+		Type:     schema.TypeString,
+		Optional: true,
+		ForceNew: false,
+	},
+	KeyAWSAssumeRole: tfsdk.SchemaAssumeRole(),
 	KeyValuesFiles: {
 		Type:     schema.TypeList,
 		Optional: true,
@@ -189,7 +201,7 @@ func resourceReleaseSetCreate(d *schema.ResourceData, meta interface{}) (finalEr
 		return err
 	}
 
-	if err := CreateReleaseSet(fs, d); err != nil {
+	if err := CreateReleaseSet(newContext(d), fs, d); err != nil {
 		return fmt.Errorf("creating release set: %w", err)
 	}
 
@@ -219,7 +231,7 @@ func resourceReleaseSetRead(d *schema.ResourceData, meta interface{}) (finalErr 
 		return err
 	}
 
-	if err := ReadReleaseSet(fs, d); err != nil {
+	if err := ReadReleaseSet(newContext(d), fs, d); err != nil {
 		return fmt.Errorf("reading release set: %w", err)
 	}
 
@@ -262,7 +274,7 @@ func resourceReleaseSetDiff(d *schema.ResourceDiff, meta interface{}) (finalErr 
 
 	provider := meta.(*ProviderInstance)
 
-	diff, err := DiffReleaseSet(fs, resourceDiffToFields(d), WithDiffConfig(DiffConfig{
+	diff, err := DiffReleaseSet(newContext(d), fs, resourceDiffToFields(d), WithDiffConfig(DiffConfig{
 		MaxDiffOutputLen: provider.MaxDiffOutputLen,
 	}))
 	if err != nil {
@@ -307,7 +319,7 @@ func resourceReleaseSetUpdate(d *schema.ResourceData, meta interface{}) (finalEr
 		return err
 	}
 
-	return UpdateReleaseSet(fs, d)
+	return UpdateReleaseSet(newContext(d), fs, d)
 }
 
 func resourceReleaseSetDelete(d *schema.ResourceData, meta interface{}) (finalErr error) {
@@ -322,7 +334,7 @@ func resourceReleaseSetDelete(d *schema.ResourceData, meta interface{}) (finalEr
 		return err
 	}
 
-	if err := DeleteReleaseSet(fs, d); err != nil {
+	if err := DeleteReleaseSet(newContext(d), fs, d); err != nil {
 		return err
 	}
 
