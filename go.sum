@@ -74,8 +74,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
-github.com/dlsniper/debugger v0.6.0 h1:AyPoOtJviCmig9AKNRAPPw5B5UyB+cI72zY3Jb+6LlA=
-github.com/dlsniper/debugger v0.6.0/go.mod h1:FFdRcPU2Yo4P411bp5U97DHJUSUMKcqw1QMGUu0uVb8=
 github.com/dsnet/compress v0.0.1 h1:PlZu0n3Tuv04TzpfPbrnI0HW/YwodEXDS+oPKahKF0Q=
 github.com/dsnet/compress v0.0.1/go.mod h1:Aw8dCMJ7RioblQeTqt88akK31OvO8Dhf5JflhBbQEHo=
 github.com/dsnet/golib v0.0.0-20171103203638-1ea166775780/go.mod h1:Lj+Z9rebOhdfkVLjJ8T6VcRQv3SXugXy999NBtR9aFY=
@@ -289,10 +287,8 @@ github.com/mumoshu/gofish v0.13.1-0.20200908033248-ab2d494fb15c h1:psoQG0FYSJesI
 github.com/mumoshu/gofish v0.13.1-0.20200908033248-ab2d494fb15c/go.mod h1:+tioljxX31bBiVquRFxuofNwXHDqeeJZrCXfsRUX7ec=
 github.com/mumoshu/shoal v0.2.18 h1:aazA6O1oXAbkJqyJSWdrVLwnj1vETeLf4fGW2QCZs9A=
 github.com/mumoshu/shoal v0.2.18/go.mod h1:TjMI6WkJ20NAhdP7xvXoDfd7EFpeSOh6xI34HMLRrHo=
-github.com/mumoshu/terraform-provider-eksctl v0.14.4 h1:Op0vO+n66vZ4GEdEy1HFFV2FdyUoHG70CaBDAk/Ttzs=
-github.com/mumoshu/terraform-provider-eksctl v0.14.4/go.mod h1:aVmDFXlNRJs0fewprS+11TSc7dPZ8UnToSZnsp8VPSE=
-github.com/mumoshu/terraform-provider-eksctl v0.14.5 h1:oC2qwLSS+oZFDGLmZATMJuxYIFsQ5+CXOouAmVcBesQ=
-github.com/mumoshu/terraform-provider-eksctl v0.14.5/go.mod h1:aVmDFXlNRJs0fewprS+11TSc7dPZ8UnToSZnsp8VPSE=
+github.com/mumoshu/terraform-provider-eksctl v0.14.6 h1:f5SjNcs9iMuIyNukjI5iXGtYeQIzOx3lFY7tuFWBfFA=
+github.com/mumoshu/terraform-provider-eksctl v0.14.6/go.mod h1:aVmDFXlNRJs0fewprS+11TSc7dPZ8UnToSZnsp8VPSE=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=

@@ -36,7 +36,7 @@ func runCommand(ctx *sdk.Context, cmd *exec.Cmd, state *State, diffMode bool) (*
 	}
 
 	newState := NewState()
-	if diffMode {
+	if diffMode && res.ExitStatus == 0 {
 		newState.Output = ""
 	} else {
 		newState.Output = res.Output
