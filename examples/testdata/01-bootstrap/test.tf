@@ -15,8 +15,6 @@ resource "helmfile_release_set" "mystack" {
     FOO = "foo"
   }
 
-  kubeconfig = "kubeconfig"
-
   values = [
     <<EOF
 {"name": "myapp"}

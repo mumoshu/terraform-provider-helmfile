@@ -16,8 +16,6 @@ resource "helmfile_embedding_example" "emb1" {
       FOO = "emb1"
     }
 
-    kubeconfig = "kubeconfig"
-
     values = [
       <<EOF
 {"name": "myapp"}
@@ -46,8 +44,6 @@ resource "helmfile_release_set" "mystack" {
   environment_variables = {
     FOO = "foo"
   }
-
-  kubeconfig = "kubeconfig"
 
   values = [
     <<EOF
@@ -92,8 +88,6 @@ EOF
   environment_variables = {
     FOO = "foo"
   }
-
-  kubeconfig = "kubeconfig"
 
   values = [
     <<EOF

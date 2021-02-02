@@ -6,8 +6,6 @@ resource "helmfile_embedding_example" "emb1" {
 
     helm_binary = "helm3"
 
-
-
     working_directory = path.module
 
     environment = "default"
@@ -34,8 +32,6 @@ resource "helmfile_release_set" "mystack" {
   content = file("./helmfile.yaml")
 
   helm_binary = "helm3"
-
-
 
   working_directory = path.module
 

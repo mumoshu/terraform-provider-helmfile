@@ -1,7 +1,7 @@
-/testout
-/helmfile-*.yaml
-/*.log
-/USE
-/temp.values-*.yaml
-/*.tf
+/helmfile.yaml
+/kubeconfig
+/values.yaml
+/test.tf
+temp.values-*.yaml
 /terraform.tfstate*
+/helmfile-*.yaml

@@ -5,3 +5,5 @@ repositories:
 releases:
 - name: issue50-scenario1
   chart: flagger/podinfo
+  values:
+  - foo: bar
