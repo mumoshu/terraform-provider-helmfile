@@ -15,8 +15,6 @@ resource "helmfile_release_set" "mystack" {
     FOO = "foo"
   }
 
-  kubeconfig = "kubeconfig"
-
   values = [
     <<EOF
 {"name": "myapp"}
@@ -26,6 +24,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 output "mystack_diff" {

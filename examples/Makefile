@@ -6,9 +6,11 @@ TF_LOG ?= TRACE
 dev:
 	rm tf.log tf.*.log || true
 	rm -rf ./tf.*.pprof || true
+	kind get kubeconfig > kubeconfig
 	make testdata/01-bootstrap init plan apply
 	make testdata/02-more-resources plan apply
 	make testdata/03-add-prom plan apply
+	make testdata/04-issue50 plan apply
 	make destroy
 
 .PHONY: init

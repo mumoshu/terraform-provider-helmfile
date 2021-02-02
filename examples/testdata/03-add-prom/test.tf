@@ -6,8 +6,6 @@ resource "helmfile_embedding_example" "emb1" {
 
     helm_binary = "helm3"
 
-
-
     working_directory = path.module
 
     environment = "default"
@@ -25,6 +23,8 @@ EOF
     selector = {
       labelkey1 = "value1"
     }
+
+    kubeconfig = "kubeconfig"
   }
 }
 
@@ -32,8 +32,6 @@ resource "helmfile_release_set" "mystack" {
   content = file("./helmfile.yaml")
 
   helm_binary = "helm3"
-
-
 
   working_directory = path.module
 
@@ -52,6 +50,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 resource "helmfile_release_set" "mystack2" {
@@ -92,6 +92,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 output "mystack_diff" {
@@ -123,6 +125,8 @@ resource "helmfile_release" "myapp" {
 { "image": {"tag": "3.1455" } }
 EOF
   ]
+
+  kubeconfig = "kubeconfig"
 }
 
 

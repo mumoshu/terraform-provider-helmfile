@@ -16,8 +16,6 @@ resource "helmfile_embedding_example" "emb1" {
       FOO = "emb1"
     }
 
-    kubeconfig = "kubeconfig"
-
     values = [
       <<EOF
 {"name": "myapp"}
@@ -27,6 +25,8 @@ EOF
     selector = {
       labelkey1 = "value1"
     }
+
+    kubeconfig = "kubeconfig"
   }
 }
 
@@ -45,8 +45,6 @@ resource "helmfile_release_set" "mystack" {
     FOO = "foo"
   }
 
-  kubeconfig = "kubeconfig"
-
   values = [
     <<EOF
 {"name": "myapp"}
@@ -56,6 +54,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 resource "helmfile_release_set" "mystack2" {
@@ -89,8 +89,6 @@ EOF
     FOO = "foo"
   }
 
-  kubeconfig = "kubeconfig"
-
   values = [
     <<EOF
 {"name": "myapp"}
@@ -104,6 +102,8 @@ EOF
   depends_on = [
     helmfile_release_set.mystack,
   ]
+
+  kubeconfig = "kubeconfig"
 }
 
 output "mystack_diff" {
