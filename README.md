@@ -45,12 +45,16 @@ There is nothing to configure for the provider, so you firstly declare the provi
 provider "helmfile" {}
 ```
 
-You can define a release in one of the three ways:
+You can define a release in one of the four ways:
 
-- Inline `helmfile_release`
-- External `helmfile_release_set`
-- Inline `helmfile_release_set`
+- [Inline `helmfile_release`](https://github.com/mumoshu/terraform-provider-helmfile#inline-helmfile_release)
+- [External `helmfile_release_set`](https://github.com/mumoshu/terraform-provider-helmfile#external-helmfile_release_set)
+  - [1:1 helmfile.yaml mapping](https://github.com/mumoshu/terraform-provider-helmfile#exsiting-helmfileyaml-11-mapping--)
+  - [Using helmfile.d folder](https://github.com/mumoshu/terraform-provider-helmfile#existing-helmfiled-folder--)
+- [Inline `helmfile_release_set`](https://github.com/mumoshu/terraform-provider-helmfile#inline-helmfile_release_set)
 
+
+### Inline `helmfile_release`
 `helmfile_release` would be a natural choice for users who are familiar with Terraform. It just map each Terraform `helmfile_release` resource to a Helm release 1-by-1:
 
 ```hcl
@@ -69,14 +73,33 @@ EOF
 	]
 }
 ```
+### External `helmfile_release_set`
 
-External `helmfile_release_set` is the easiest way for existing Helmfile users, as the tf resource maps to the exsiting helmfile.yaml 1:1.
+External `helmfile_release_set` is the easiest way for existing Helmfile users.
+
+#### Exsiting helmfile.yaml 1:1 mapping -
 
 ```
 resource "helmfile_release_set" "mystack" {
     content = file("./helmfile.yaml")
 }
 ```
+
+#### Existing helmfile.d folder -
+
+```
+resource "helmfile_release_set" "mystack" {
+	working_directory = "<directory_where_helmfile.d_exists>"
+	kubeconfig        = pathexpand("<kube_config>")
+	environment       = "prod"
+	values = [
+		<<EOF
+{ "image": {"tag": "3.14" } }
+EOF
+	]
+}
+```
+### Inline `helmfile_release_set`
 
 The inline variant of the release set allows you to render helmfile.yaml without Go template but with the Terraform syntax:
 
