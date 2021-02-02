@@ -1,0 +1,7 @@
+repositories:
+- name: flagger
+  url: https://flagger.app
+
+releases:
+- name: issue50-scenario2
+  chart: flagger/podinfo

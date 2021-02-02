@@ -26,6 +26,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 output "mystack_diff" {

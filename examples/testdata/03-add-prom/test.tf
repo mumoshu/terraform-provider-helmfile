@@ -25,6 +25,8 @@ EOF
     selector = {
       labelkey1 = "value1"
     }
+
+    kubeconfig = "kubeconfig"
   }
 }
 
@@ -52,6 +54,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 resource "helmfile_release_set" "mystack2" {
@@ -92,6 +96,8 @@ EOF
   selector = {
     labelkey1 = "value1"
   }
+
+  kubeconfig = "kubeconfig"
 }
 
 output "mystack_diff" {
@@ -123,6 +129,8 @@ resource "helmfile_release" "myapp" {
 { "image": {"tag": "3.1455" } }
 EOF
   ]
+
+  kubeconfig = "kubeconfig"
 }
 
 
