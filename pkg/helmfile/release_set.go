@@ -200,13 +200,25 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 	}
 	for _, vs := range fs.Values {
 		js := []byte(fmt.Sprintf("%s", vs))
+
 		first := sha256.New()
 		first.Write(js)
-		tmpf := fmt.Sprintf("temp.values-%x.yaml", first.Sum(nil))
-		if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, tmpf), js, 0700); err != nil {
+
+		relpath := filepath.Join(
+			fs.WorkingDirectory,
+			fmt.Sprintf("temp.values-%x.yaml", first.Sum(nil)),
+		)
+
+		abspath, err := filepath.Abs(relpath)
+		if err != nil {
+			return nil, xerrors.Errorf("getting absolute path to %s: %w", abspath, err)
+		}
+
+		if err := ioutil.WriteFile(abspath, js, 0700); err != nil {
 			return nil, err
 		}
-		flags = append(flags, "--state-values-file", tmpf)
+
+		flags = append(flags, "--state-values-file", abspath)
 	}
 
 	flags = append(flags, args...)
@@ -465,20 +477,25 @@ func runDiff(ctx *sdk.Context, fs *ReleaseSet, conf DiffConfig) (*State, error) 
 		return nil, xerrors.Errorf("computing hash of object: %w", err)
 	}
 
-	tempDir := filepath.Join(".terraform", "helmfile", fmt.Sprintf("temp-%s", hash))
+	relpath := filepath.Join(".terraform", "helmfile", fmt.Sprintf("temp-%s", hash))
 
-	if info, _ := os.Stat(tempDir); info != nil {
-		if err := os.RemoveAll(tempDir); err != nil {
-			return nil, xerrors.Errorf("removing stable temp directory %s: %w", tempDir, err)
+	abspath, err := filepath.Abs(relpath)
+	if err != nil {
+		return nil, xerrors.Errorf("getting absolute path to %s: %w", relpath)
+	}
+
+	if info, _ := os.Stat(abspath); info != nil {
+		if err := os.RemoveAll(abspath); err != nil {
+			return nil, xerrors.Errorf("removing stable temp directory %s: %w", abspath, err)
 		}
 	}
 
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return nil, xerrors.Errorf("creating temp directory for helmfile and chartify %s: %w", tempDir, err)
+	if err := os.MkdirAll(abspath, 0755); err != nil {
+		return nil, xerrors.Errorf("creating temp directory for helmfile and chartify %s: %w", abspath, err)
 	}
 
-	cmd.Env = append(cmd.Env, "HELMFILE_TEMPDIR="+tempDir)
-	cmd.Env = append(cmd.Env, "CHARTIFY_TEMPDIR="+tempDir)
+	cmd.Env = append(cmd.Env, "HELMFILE_TEMPDIR="+abspath)
+	cmd.Env = append(cmd.Env, "CHARTIFY_TEMPDIR="+abspath)
 
 	if conf.Kubeconfig != "" {
 		cmd.Env = append(cmd.Env, "KUBECONFIG="+conf.Kubeconfig)
