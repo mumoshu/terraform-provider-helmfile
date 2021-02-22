@@ -7,7 +7,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/terraform-plugin-sdk v1.0.0
 	github.com/mumoshu/shoal v0.2.18
-	github.com/mumoshu/terraform-provider-eksctl v0.14.6
+	github.com/mumoshu/terraform-provider-eksctl v0.15.1
 	github.com/pkg/profile v1.5.0
 	github.com/rs/xid v1.2.1
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
