@@ -135,7 +135,7 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 	bs := []byte(fs.Content)
 	first := sha256.New()
 	first.Write(bs)
-	fs.TmpHelmFilePath = filepath.Join(".terraform", "helmfile", fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil)))
+	fs.TmpHelmFilePath = fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
 	if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, fs.TmpHelmFilePath), bs, 0700); err != nil {
 		return nil, err
 	}
@@ -470,6 +470,7 @@ func runDiff(ctx *sdk.Context, fs *ReleaseSet, conf DiffConfig) (*State, error) 
 	if err := os.MkdirAll(abspath, 0755); err != nil {
 		return nil, xerrors.Errorf("creating temp directory for helmfile and chartify %s: %w", abspath, err)
 	}
+	defer os.Remove(abspath)
 
 	cmd.Env = append(cmd.Env, "HELMFILE_TEMPDIR="+abspath)
 	cmd.Env = append(cmd.Env, "CHARTIFY_TEMPDIR="+abspath)
