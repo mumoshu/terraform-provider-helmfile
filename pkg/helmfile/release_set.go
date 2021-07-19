@@ -23,7 +23,6 @@ type ReleaseSet struct {
 	Values      []interface{}
 	ValuesFiles []interface{}
 	HelmBin     string
-	Path        string
 	Content     string
 	DiffOutput  string
 	ApplyOutput string
@@ -68,12 +67,6 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	//   panic: interface conversion: interface {} is nil, not string
 	if env := d.Get(KeyEnvironment); env != nil {
 		f.Environment = env.(string)
-	}
-	// environment defaults to "" for helmfile_release_set but it's always nil for helmfile_release.
-	// This nil-check is required to handle the latter case. Otherwise it ends up with:
-	//   panic: interface conversion: interface {} is nil, not string
-	if path := d.Get(KeyPath); path != nil {
-		f.Path = path.(string)
 	}
 
 	if content := d.Get(KeyContent); content != nil {
@@ -121,20 +114,6 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 
 	logf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
-	if f.Path != "" {
-		if info, err := os.Stat(f.Path); err != nil {
-			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("verifying working_directory %q: %w", f.Path, err)
-			}
-		} else if info != nil && info.IsDir() {
-			f.WorkingDirectory = f.Path
-		} else {
-			f.WorkingDirectory = filepath.Dir(f.Path)
-		}
-	}
-
-	logf("Printing computed working directory for %q: %s", d.Id(), f.WorkingDirectory)
-
 	if environmentVariables := d.Get(KeyEnvironmentVariables); environmentVariables != nil {
 		f.EnvironmentVariables = environmentVariables.(map[string]interface{})
 	}
@@ -146,10 +125,6 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 }
 
 func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
-	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
-		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
-	}
-
 	if fs.WorkingDirectory != "" {
 		if err := os.MkdirAll(fs.WorkingDirectory, 0755); err != nil {
 			return nil, fmt.Errorf("creating working directory %q: %w", fs.WorkingDirectory, err)
@@ -157,16 +132,12 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 	}
 
 	var path string
-	if fs.Content != "" {
-		bs := []byte(fs.Content)
-		first := sha256.New()
-		first.Write(bs)
-		path = fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
-		if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, path), bs, 0700); err != nil {
-			return nil, err
-		}
-	} else {
-		path = fs.Path
+	bs := []byte(fs.Content)
+	first := sha256.New()
+	first.Write(bs)
+	path = fmt.Sprintf("test-helmfile-%x.yaml", first.Sum(nil))
+	if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, path), bs, 0700); err != nil {
+		return nil, err
 	}
 
 	flags := []string{
@@ -646,13 +617,6 @@ func DiffReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite, opts 
 	var diffConf DiffConfig
 	for _, o := range opts {
 		o(&diffConf)
-	}
-
-	if fs.Path != "" {
-		_, err := os.Stat(fs.Path)
-		if err != nil {
-			return "", fmt.Errorf("verifying path %q: %w", fs.Path, err)
-		}
 	}
 
 	diff, err := readDiffFile(ctx, fs)

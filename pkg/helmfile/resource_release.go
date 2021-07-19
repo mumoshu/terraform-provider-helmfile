@@ -1,13 +1,11 @@
 package helmfile
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/mumoshu/terraform-provider-eksctl/pkg/sdk/tfsdk"
 	"github.com/rs/xid"
 	"golang.org/x/xerrors"
-	"io/ioutil"
 	"runtime/debug"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -299,17 +297,11 @@ func NewReleaseSetWithSingleRelease(d ResourceRead) (*ReleaseSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	first := sha256.New()
-	first.Write(bs)
-	path := fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
-	if err := ioutil.WriteFile(path, bs, 0755); err != nil {
-		return nil, err
-	}
 
 	rs := &ReleaseSet{
 		Bin:              r.Bin,
 		HelmBin:          r.HelmBin,
-		Path:             path,
+		Content:          string(bs),
 		Environment:      "default",
 		WorkingDirectory: r.WorkingDirectory,
 		Kubeconfig:       r.Kubeconfig,
