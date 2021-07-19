@@ -19,14 +19,15 @@ import (
 )
 
 type ReleaseSet struct {
-	Bin         string
-	Values      []interface{}
-	ValuesFiles []interface{}
-	HelmBin     string
-	Content     string
-	DiffOutput  string
-	ApplyOutput string
-	Environment string
+	Bin             string
+	Values          []interface{}
+	ValuesFiles     []interface{}
+	HelmBin         string
+	Content         string
+	DiffOutput      string
+	ApplyOutput     string
+	Environment     string
+	TmpHelmFilePath string
 
 	// Selector is a helmfile label selector that is a AND list of label key-value pairs
 	Selector map[string]interface{}
@@ -131,17 +132,16 @@ func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error)
 		}
 	}
 
-	var path string
 	bs := []byte(fs.Content)
 	first := sha256.New()
 	first.Write(bs)
-	path = fmt.Sprintf("test-helmfile-%x.yaml", first.Sum(nil))
-	if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, path), bs, 0700); err != nil {
+	fs.TmpHelmFilePath = filepath.Join(".terraform", "helmfile", fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil)))
+	if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, fs.TmpHelmFilePath), bs, 0700); err != nil {
 		return nil, err
 	}
 
 	flags := []string{
-		"--file", path,
+		"--file", fs.TmpHelmFilePath,
 		"--no-color",
 	}
 
@@ -278,6 +278,8 @@ func CreateReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) err
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
+
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
 	defer mutexKV.Unlock(fs.WorkingDirectory)
@@ -343,6 +345,7 @@ func runBuild(ctx *sdk.Context, fs *ReleaseSet, flags ...string) (*State, error)
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -361,6 +364,7 @@ func getHelmfileVersion(ctx *sdk.Context, fs *ReleaseSet) (*semver.Version, erro
 	if err != nil {
 		return nil, fmt.Errorf("creating command: %w", err)
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -394,6 +398,7 @@ func runTemplate(ctx *sdk.Context, fs *ReleaseSet) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -438,6 +443,7 @@ func runDiff(ctx *sdk.Context, fs *ReleaseSet, conf DiffConfig) (*State, error) 
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	// Use the stable directory for storing temporary charts and values files
 	// so that helmfile-diff output becomes stables and terraform plan doesn't break.
@@ -818,6 +824,7 @@ func UpdateReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) err
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -840,6 +847,7 @@ func DeleteReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) err
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
