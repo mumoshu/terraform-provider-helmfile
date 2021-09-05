@@ -19,15 +19,15 @@ import (
 )
 
 type ReleaseSet struct {
-	Bin         string
-	Values      []interface{}
-	ValuesFiles []interface{}
-	HelmBin     string
-	Path        string
-	Content     string
-	DiffOutput  string
-	ApplyOutput string
-	Environment string
+	Bin             string
+	Values          []interface{}
+	ValuesFiles     []interface{}
+	HelmBin         string
+	Content         string
+	DiffOutput      string
+	ApplyOutput     string
+	Environment     string
+	TmpHelmFilePath string
 
 	// Selector is a helmfile label selector that is a AND list of label key-value pairs
 	Selector map[string]interface{}
@@ -68,12 +68,6 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 	//   panic: interface conversion: interface {} is nil, not string
 	if env := d.Get(KeyEnvironment); env != nil {
 		f.Environment = env.(string)
-	}
-	// environment defaults to "" for helmfile_release_set but it's always nil for helmfile_release.
-	// This nil-check is required to handle the latter case. Otherwise it ends up with:
-	//   panic: interface conversion: interface {} is nil, not string
-	if path := d.Get(KeyPath); path != nil {
-		f.Path = path.(string)
 	}
 
 	if content := d.Get(KeyContent); content != nil {
@@ -121,20 +115,6 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 
 	logf("Printing raw working directory for %q: %s", d.Id(), f.WorkingDirectory)
 
-	if f.Path != "" {
-		if info, err := os.Stat(f.Path); err != nil {
-			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("verifying working_directory %q: %w", f.Path, err)
-			}
-		} else if info != nil && info.IsDir() {
-			f.WorkingDirectory = f.Path
-		} else {
-			f.WorkingDirectory = filepath.Dir(f.Path)
-		}
-	}
-
-	logf("Printing computed working directory for %q: %s", d.Id(), f.WorkingDirectory)
-
 	if environmentVariables := d.Get(KeyEnvironmentVariables); environmentVariables != nil {
 		f.EnvironmentVariables = environmentVariables.(map[string]interface{})
 	}
@@ -146,31 +126,22 @@ func NewReleaseSet(d ResourceRead) (*ReleaseSet, error) {
 }
 
 func NewCommandWithKubeconfig(fs *ReleaseSet, args ...string) (*exec.Cmd, error) {
-	if fs.Content != "" && fs.Path != "" && fs.Path != HelmfileDefaultPath {
-		return nil, fmt.Errorf("content and path can't be specified together: content=%q, path=%q", fs.Content, fs.Path)
-	}
-
 	if fs.WorkingDirectory != "" {
 		if err := os.MkdirAll(fs.WorkingDirectory, 0755); err != nil {
 			return nil, fmt.Errorf("creating working directory %q: %w", fs.WorkingDirectory, err)
 		}
 	}
 
-	var path string
-	if fs.Content != "" {
-		bs := []byte(fs.Content)
-		first := sha256.New()
-		first.Write(bs)
-		path = fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
-		if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, path), bs, 0700); err != nil {
-			return nil, err
-		}
-	} else {
-		path = fs.Path
+	bs := []byte(fs.Content)
+	first := sha256.New()
+	first.Write(bs)
+	fs.TmpHelmFilePath = fmt.Sprintf("helmfile-%x.yaml", first.Sum(nil))
+	if err := ioutil.WriteFile(filepath.Join(fs.WorkingDirectory, fs.TmpHelmFilePath), bs, 0700); err != nil {
+		return nil, err
 	}
 
 	flags := []string{
-		"--file", path,
+		"--file", fs.TmpHelmFilePath,
 		"--no-color",
 	}
 
@@ -307,6 +278,8 @@ func CreateReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) err
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
+
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
 	defer mutexKV.Unlock(fs.WorkingDirectory)
@@ -372,6 +345,7 @@ func runBuild(ctx *sdk.Context, fs *ReleaseSet, flags ...string) (*State, error)
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -390,6 +364,7 @@ func getHelmfileVersion(ctx *sdk.Context, fs *ReleaseSet) (*semver.Version, erro
 	if err != nil {
 		return nil, fmt.Errorf("creating command: %w", err)
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -423,6 +398,7 @@ func runTemplate(ctx *sdk.Context, fs *ReleaseSet) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -467,6 +443,7 @@ func runDiff(ctx *sdk.Context, fs *ReleaseSet, conf DiffConfig) (*State, error) 
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	// Use the stable directory for storing temporary charts and values files
 	// so that helmfile-diff output becomes stables and terraform plan doesn't break.
@@ -493,6 +470,7 @@ func runDiff(ctx *sdk.Context, fs *ReleaseSet, conf DiffConfig) (*State, error) 
 	if err := os.MkdirAll(abspath, 0755); err != nil {
 		return nil, xerrors.Errorf("creating temp directory for helmfile and chartify %s: %w", abspath, err)
 	}
+	defer os.Remove(abspath)
 
 	cmd.Env = append(cmd.Env, "HELMFILE_TEMPDIR="+abspath)
 	cmd.Env = append(cmd.Env, "CHARTIFY_TEMPDIR="+abspath)
@@ -646,13 +624,6 @@ func DiffReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite, opts 
 	var diffConf DiffConfig
 	for _, o := range opts {
 		o(&diffConf)
-	}
-
-	if fs.Path != "" {
-		_, err := os.Stat(fs.Path)
-		if err != nil {
-			return "", fmt.Errorf("verifying path %q: %w", fs.Path, err)
-		}
 	}
 
 	diff, err := readDiffFile(ctx, fs)
@@ -854,6 +825,7 @@ func UpdateReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) err
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
@@ -876,6 +848,7 @@ func DeleteReleaseSet(ctx *sdk.Context, fs *ReleaseSet, d ResourceReadWrite) err
 	if err != nil {
 		return err
 	}
+	defer os.Remove(fs.TmpHelmFilePath)
 
 	//obtain exclusive lock
 	mutexKV.Lock(fs.WorkingDirectory)
