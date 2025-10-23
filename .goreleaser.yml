@@ -1,9 +1,12 @@
 # Visit https://goreleaser.com for documentation on how to customize this
 # behavior.
+version: 2
+
 before:
   hooks:
   # this is just an example and not a requirement for provider building/publishing
   - go mod tidy
+
 builds:
 - env:
   # goreleaser does not work with CGO, it could also complicate
@@ -17,7 +20,6 @@ builds:
   - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
   goos:
   - freebsd
-  - windows
   - linux
   - darwin
   goarch:
@@ -32,9 +34,9 @@ builds:
   - goos: freebsd
     goarch: arm64
   binary: '{{ .ProjectName }}_v{{ .Version }}'
+
 archives:
-- format: zip
-  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+- name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
   algorithm: sha256
